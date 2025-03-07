@@ -37,7 +37,7 @@ class Player(QtWidgets.QMainWindow):
 
     def __init__(self, master=None):
         QtWidgets.QMainWindow.__init__(self, master)
-        self.setWindowTitle("Media Player")
+        self.setWindowTitle("SnakePlayer🐍")
 
         # Create a basic vlc instance
         self.instance = vlc.Instance()
