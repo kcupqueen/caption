@@ -31,6 +31,9 @@ import sys
 from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
 
+from caption import get_captions, find_caption
+
+
 class Player(QtWidgets.QMainWindow):
     """A simple Media Player using VLC and Qt
     """
@@ -51,6 +54,8 @@ class Player(QtWidgets.QMainWindow):
         self.create_ui()
         self.is_paused = False
         self.resized = False
+        self.captionList = []
+        self.cur_caption_seq = set()
 
     def create_ui(self):
         """Set up the user interface, signals & slots
@@ -116,12 +121,20 @@ class Player(QtWidgets.QMainWindow):
 
         # File menu
         file_menu = menu_bar.addMenu("File")
+        # Caption menu
+        caption_menu = menu_bar.addMenu("Caption")
 
         # Add actions to file menu
         open_action = QtWidgets.QAction("Load Video", self)
         open_shortcut = QtGui.QKeySequence(QtGui.QKeySequence.StandardKey.Open)
         open_action.setShortcut(open_shortcut)
         file_menu.addAction(open_action)
+
+        # Add actions to caption menu
+        caption_action = QtWidgets.QAction("Load Caption", self)
+        caption_menu.addAction(caption_action)
+        # Connect the caption action to a method
+        caption_action.triggered.connect(self.load_caption)
 
         close_action = QtWidgets.QAction("Close App", self)
         close_shortcut = QtGui.QKeySequence(QtGui.QKeySequence.StandardKey.Close)
@@ -155,12 +168,12 @@ class Player(QtWidgets.QMainWindow):
             width, height = self.mediaplayer.video_get_size(0)
             print(f"Video Size: {width}x{height}")
             # resize the window to the video size
-            if not self.resized:
-                self.setMinimumSize(width, height)
+            if not self.resized and width > 0 and height > 0:
+                # self.setMinimumSize(width, height)
                 self.resize(width, height)
                 self.resized = True
                 self.caption.resize(width, self.caption.height())
-
+                pass
 
 
     def stop(self):
@@ -189,7 +202,21 @@ class Player(QtWidgets.QMainWindow):
 
         def time_changed_callback(event):
             current_time = self.mediaplayer.get_time()  # 获取当前播放时间（单位：毫秒）
-            print(f"Current Time: {current_time} ms")
+            if self.captionList:
+                cur_caption = find_caption(current_time, self.captionList, self.cur_caption_seq)
+                print('event', event)
+                print('current_time', current_time)
+                print('cur_caption', cur_caption)
+                if cur_caption and cur_caption['seq'] not in self.cur_caption_seq:
+                    self.cur_caption_seq.clear()
+                    text = cur_caption['caption'].text
+                    text = text.replace('&nbsp;', ' ').replace('\n', ' ')
+                    self.cur_caption_seq.add(cur_caption['seq'])
+                    QtCore.QMetaObject.invokeMethod(self.caption, "setText", QtCore.Qt.QueuedConnection,
+                                                    QtCore.Q_ARG(str, text))
+
+
+
 
         event_manager.event_attach(vlc.EventType.MediaPlayerTimeChanged, time_changed_callback)
 
@@ -197,7 +224,7 @@ class Player(QtWidgets.QMainWindow):
         self.media.parse()
 
         # Set the title of the track as window title
-        self.setWindowTitle(self.media.get_meta(0))
+        #self.setWindowTitle(self.media.get_meta(0))
         width, height = self.mediaplayer.video_get_size(0)
         print(f"Video Size: {width}x{height}")
 
@@ -251,6 +278,18 @@ class Player(QtWidgets.QMainWindow):
             # This fixes that "bug".
             if not self.is_paused:
                 self.stop()
+
+    def load_caption(self):
+        """Open a file dialog to load a caption file"""
+        dialog_txt = "Choose Caption File"
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, dialog_txt, os.path.expanduser('~'),
+                                                            "webVTT (*.vtt);;srt Files (*.srt);;All Files (*)")
+        if filename:
+            ret = get_captions(filename)
+            if len(ret) > 0:
+                self.captionList = ret
+                self.caption.setText("load caption {} successfully, length:{} ".format(filename, len(ret)))
+
 
 def main():
     """Entry point for our simple vlc player
