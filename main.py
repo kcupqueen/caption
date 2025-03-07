@@ -50,6 +50,7 @@ class Player(QtWidgets.QMainWindow):
 
         self.create_ui()
         self.is_paused = False
+        self.resized = False
 
     def create_ui(self):
         """Set up the user interface, signals & slots
@@ -67,6 +68,8 @@ class Player(QtWidgets.QMainWindow):
         self.palette.setColor(QtGui.QPalette.Window, QtGui.QColor(0, 0, 0))
         self.videoframe.setPalette(self.palette)
         self.videoframe.setAutoFillBackground(True)
+        # set size (default size)
+        self.videoframe.setMinimumSize(640, 480)
 
         self.positionslider = QtWidgets.QSlider(QtCore.Qt.Horizontal, self)
         self.positionslider.setToolTip("Position")
@@ -91,10 +94,21 @@ class Player(QtWidgets.QMainWindow):
         self.hbuttonbox.addWidget(self.volumeslider)
         self.volumeslider.valueChanged.connect(self.set_volume)
 
+
+        # caption area
+        self.caption = QtWidgets.QTextEdit("Caption")
+        self.caption.setText("""subtitles will be displayed here, you can select the text and look up the meaning while watching the video""")
+
+        # Create a separate layout for the caption
+        self.caption_layout = QtWidgets.QVBoxLayout()
+        self.caption_layout.addWidget(self.caption)
+
+
         self.vboxlayout = QtWidgets.QVBoxLayout()
         self.vboxlayout.addWidget(self.videoframe)
         self.vboxlayout.addWidget(self.positionslider)
         self.vboxlayout.addLayout(self.hbuttonbox)
+        self.vboxlayout.addLayout(self.caption_layout)
 
         self.widget.setLayout(self.vboxlayout)
 
@@ -138,6 +152,16 @@ class Player(QtWidgets.QMainWindow):
             self.playbutton.setText("Pause")
             self.timer.start()
             self.is_paused = False
+            width, height = self.mediaplayer.video_get_size(0)
+            print(f"Video Size: {width}x{height}")
+            # resize the window to the video size
+            if not self.resized:
+                self.setMinimumSize(width, height)
+                self.resize(width, height)
+                self.resized = True
+                self.caption.resize(width, self.caption.height())
+
+
 
     def stop(self):
         """Stop player
@@ -174,6 +198,8 @@ class Player(QtWidgets.QMainWindow):
 
         # Set the title of the track as window title
         self.setWindowTitle(self.media.get_meta(0))
+        width, height = self.mediaplayer.video_get_size(0)
+        print(f"Video Size: {width}x{height}")
 
         # The media player has to be 'connected' to the QFrame (otherwise the
         # video would be displayed in it's own window). This is platform
@@ -232,7 +258,7 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     player = Player()
     player.show()
-    player.resize(640, 480)
+    #player.resize(640, 480)
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
