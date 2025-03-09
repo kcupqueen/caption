@@ -32,6 +32,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
 
 from caption import get_captions, find_caption
+from widget.slider import VideoSlider, ClickableSlider
 
 
 class Player(QtWidgets.QMainWindow):
@@ -76,12 +77,11 @@ class Player(QtWidgets.QMainWindow):
         # set size (default size)
         self.videoframe.setMinimumSize(640, 480)
 
-        self.positionslider = QtWidgets.QSlider(QtCore.Qt.Horizontal, self)
+        self.positionslider = ClickableSlider(QtCore.Qt.Horizontal, self)
         self.positionslider.setToolTip("Position")
         self.positionslider.setMaximum(1000)
         self.positionslider.sliderMoved.connect(self.set_position)
         self.positionslider.sliderPressed.connect(self.set_position)
-
         self.hbuttonbox = QtWidgets.QHBoxLayout()
         self.playbutton = QtWidgets.QPushButton("Play")
         self.hbuttonbox.addWidget(self.playbutton)
@@ -257,6 +257,7 @@ class Player(QtWidgets.QMainWindow):
         # Set the media position to where the slider was dragged
         self.timer.stop()
         pos = self.positionslider.value()
+        print('pos', pos)
         self.mediaplayer.set_position(pos / 1000.0)
         self.timer.start()
 
@@ -267,6 +268,7 @@ class Player(QtWidgets.QMainWindow):
         # Note that the setValue function only takes values of type int,
         # so we must first convert the corresponding media position.
         media_pos = int(self.mediaplayer.get_position() * 1000)
+        print('set position', media_pos)
         self.positionslider.setValue(media_pos)
 
         # No need to call this function if nothing is played
