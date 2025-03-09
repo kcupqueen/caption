@@ -103,7 +103,8 @@ class Player(QtWidgets.QMainWindow):
         # caption area
         self.caption = QtWidgets.QTextEdit("Caption")
         self.caption.setText("""subtitles will be displayed here, you can select the text and look up the meaning while watching the video""")
-
+        # register selectionChanged signal
+        self.caption.selectionChanged.connect(self.on_selection_changed)
         # Create a separate layout for the caption
         self.caption_layout = QtWidgets.QVBoxLayout()
         self.caption_layout.addWidget(self.caption)
@@ -172,7 +173,7 @@ class Player(QtWidgets.QMainWindow):
                 # self.setMinimumSize(width, height)
                 self.resize(width, height)
                 self.resized = True
-                self.caption.resize(width, self.caption.height())
+                self.caption.resize(width, int(height/3))
                 pass
 
 
@@ -204,16 +205,16 @@ class Player(QtWidgets.QMainWindow):
             current_time = self.mediaplayer.get_time()  # 获取当前播放时间（单位：毫秒）
             if self.captionList:
                 cur_caption = find_caption(current_time, self.captionList, self.cur_caption_seq)
-                print('event', event)
-                print('current_time', current_time)
-                print('cur_caption', cur_caption)
+                # print('event', event)
+                # print('current_time', current_time)
+                # print('cur_caption', cur_caption)
                 if cur_caption and cur_caption['seq'] not in self.cur_caption_seq:
                     self.cur_caption_seq.clear()
                     text = cur_caption['caption'].text
                     text = text.replace('&nbsp;', ' ').replace('\n', ' ')
                     self.cur_caption_seq.add(cur_caption['seq'])
-                    QtCore.QMetaObject.invokeMethod(self.caption, "setText", QtCore.Qt.QueuedConnection,
-                                                    QtCore.Q_ARG(str, text))
+                    QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
+                                                    QtCore.Q_ARG(str, f"<h1>{text}</h1>"))
 
 
 
@@ -268,7 +269,7 @@ class Player(QtWidgets.QMainWindow):
         # Note that the setValue function only takes values of type int,
         # so we must first convert the corresponding media position.
         media_pos = int(self.mediaplayer.get_position() * 1000)
-        print('set position', media_pos)
+        #print('set position', media_pos)
         self.positionslider.setValue(media_pos)
 
         # No need to call this function if nothing is played
@@ -292,6 +293,11 @@ class Player(QtWidgets.QMainWindow):
                 self.captionList = ret
                 self.caption.setText("load caption {} successfully, length:{} ".format(filename, len(ret)))
 
+    def on_selection_changed(self):
+        cursor = self.caption.textCursor()
+        selected_text = cursor.selectedText()  # ✅ 获取选中的文本
+
+        print("position {}, selected text: {}".format(cursor.position(), selected_text))
 
 def main():
     """Entry point for our simple vlc player
