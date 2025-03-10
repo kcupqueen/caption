@@ -33,6 +33,7 @@ import vlc
 from PyQt5.QtGui import QTextCharFormat, QFont
 
 from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType
+from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
 
 
@@ -114,6 +115,10 @@ class Player(QtWidgets.QMainWindow):
         # Create a separate layout for the caption
         self.caption_layout = QtWidgets.QVBoxLayout()
         self.caption_layout.addWidget(self.caption)
+
+        # caption word lookup
+        self.floatingWindow = FloatingTranslation(self)  # 只创建一个实例
+
 
 
         self.vboxlayout = QtWidgets.QVBoxLayout()
@@ -324,6 +329,10 @@ class Player(QtWidgets.QMainWindow):
                 translate = ''
             if translate:
                 print('translate:', translate)
+                cursor_rect = self.caption.cursorRect(cursor)
+                pos = self.caption.mapToGlobal(cursor_rect.bottomRight())  # 获取全局坐标
+                self.floatingWindow.set_translation(selected_text, pos)  # 传递位置数据
+
 
 
         print("on_selection_changed position {}".format(cursor.position()))
