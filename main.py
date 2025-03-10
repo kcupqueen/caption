@@ -92,9 +92,9 @@ class Player(QtWidgets.QMainWindow):
         self.hbuttonbox.addWidget(self.playbutton)
         self.playbutton.clicked.connect(self.play_pause)
 
-        self.stopbutton = QtWidgets.QPushButton("Stop")
-        self.hbuttonbox.addWidget(self.stopbutton)
-        self.stopbutton.clicked.connect(self.stop)
+        # self.stopbutton = QtWidgets.QPushButton("Stop")
+        # self.hbuttonbox.addWidget(self.stopbutton)
+        # self.stopbutton.clicked.connect(self.stop)
 
         self.hbuttonbox.addStretch(1)
         self.volumeslider = QtWidgets.QSlider(QtCore.Qt.Horizontal, self)
@@ -172,6 +172,7 @@ class Player(QtWidgets.QMainWindow):
     def play_pause(self):
         """Toggle play/pause status
         """
+        print('play_pause')
         if self.mediaplayer.is_playing():
             self.mediaplayer.pause()
             self.playbutton.setText("Play")

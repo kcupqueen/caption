@@ -43,9 +43,16 @@ class FloatingTranslation(QWidget):
         """监听鼠标点击事件，判断是否点击到了窗口外部"""
         if event.type() == QEvent.MouseButtonPress:
             if not self.showing:
-                print('window not showing, ignore the event')
-                # ignore the event if the window is not showing
                 return super().eventFilter(obj, event)
+
+            clicked_widget = QApplication.widgetAt(event.globalPos())
+            
+            # 直接比较是否是 playbutton
+            if clicked_widget == self.parent().playbutton:  # 最具体的方式
+                self.hide()
+                print('playbutton clicked')
+                return super().eventFilter(obj, event)
+            
             if not self.geometry().contains(event.globalPos()):  # 判断是否点击到窗口外部
                 self.hide()
                 self.windowClosed.emit({
