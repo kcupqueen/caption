@@ -119,6 +119,7 @@ class Player(QtWidgets.QMainWindow):
         # caption word lookup
         self.floatingWindow = FloatingTranslation(self)
 
+        self.floatingWindow.windowClosed.connect(self.go_on_play)  # Connect signal to slot
 
 
         self.vboxlayout = QtWidgets.QVBoxLayout()
@@ -338,8 +339,7 @@ class Player(QtWidgets.QMainWindow):
                 self.pause("lookup")
                 cursor_rect = self.caption.cursorRect(cursor)
                 pos = self.caption.mapToGlobal(cursor_rect.bottomRight())
-                self.floatingWindow = FloatingTranslation(self)
-                self.floatingWindow.windowClosed.connect(self.go_on_play)  # Connect signal to slot
+                self.floatingWindow.set_translation(selected_text, pos)
                 self.floatingWindow.set_translation(selected_text, pos)
 
 
