@@ -1,7 +1,7 @@
 # pyvlc development to do list
 ## dictionary
-- [ ] feature 选词时悬浮窗
-- [x] feature 选词时翻译
+- [x] feature 选词时悬浮窗
+- [ ] feature 选词时翻译
 - [ ] feature 选词时发音
 - [ ] feature 选词时暂停,离开时继续
 - [ ] feature 翻译API
