@@ -336,11 +336,10 @@ class Player(QtWidgets.QMainWindow):
                 translate = lookup_caption(selected_text, LookUpType.SENTENCE)
             else:
                 translate = ''
-            if translate:
+            if selected_text:
                 self.pause("lookup")
                 cursor_rect = self.caption.cursorRect(cursor)
                 pos = self.caption.mapToGlobal(cursor_rect.bottomRight())
-                self.floatingWindow.set_translation(selected_text, pos)
                 self.floatingWindow.set_translation(selected_text, pos)
 
 
