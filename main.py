@@ -30,9 +30,13 @@ import sys
 
 from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
+from PyQt5.QtGui import QTextCharFormat, QFont
 
-from caption import get_captions, find_caption
+from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType
 from widget.slider import VideoSlider, ClickableSlider
+
+
+
 
 
 class Player(QtWidgets.QMainWindow):
@@ -102,7 +106,9 @@ class Player(QtWidgets.QMainWindow):
 
         # caption area
         self.caption = QtWidgets.QTextEdit("Caption")
-        self.caption.setText("""subtitles will be displayed here, you can select the text and look up the meaning while watching the video""")
+        self.caption.setReadOnly(True)
+        welcomeHtml = get_template("welcome", "subtitles will be displayed here, you can select the text and look up the meaning while watching the video")
+        self.caption.setHtml(welcomeHtml)
         # register selectionChanged signal
         self.caption.selectionChanged.connect(self.on_selection_changed)
         # Create a separate layout for the caption
@@ -212,9 +218,12 @@ class Player(QtWidgets.QMainWindow):
                     self.cur_caption_seq.clear()
                     text = cur_caption['caption'].text
                     text = text.replace('&nbsp;', ' ').replace('\n', ' ')
+                    text = text.replace('{', '{{').replace('}', '}}')
+
                     self.cur_caption_seq.add(cur_caption['seq'])
+                    html = get_template("caption", text)
                     QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
-                                                    QtCore.Q_ARG(str, f"<h1>{text}</h1>"))
+                                                    QtCore.Q_ARG(str, html))
 
 
 
@@ -295,9 +304,30 @@ class Player(QtWidgets.QMainWindow):
 
     def on_selection_changed(self):
         cursor = self.caption.textCursor()
-        selected_text = cursor.selectedText()  # ✅ 获取选中的文本
+        if cursor.hasSelection():
+            selected_text = cursor.selectedText()  # ✅ Get the selected text
+            # new_format = QTextCharFormat()
+            # font = QFont("Arial", 14, QFont.Bold)  # Arial font, size 14, bold
+            # new_format.setForeground(QtGui.QBrush(QtGui.QColor("blue")))  # Blue text
+            # font.setItalic(True)  # Italic
+            # new_format.setFont(font)
+            #
+            # self.caption.blockSignals(True)  # Block signals to prevent recursion
+            # cursor.mergeCharFormat(new_format)  # Apply format
+            # self.caption.blockSignals(False)  # Unblock signals
+            translate = ''
+            if selected_text.isalpha() and ' ' not in selected_text:
+                translate = lookup_caption(selected_text, LookUpType.WORD)
+            elif selected_text.isalpha() and ' ' in selected_text:
+                translate = lookup_caption(selected_text, LookUpType.SENTENCE)
+            else:
+                translate = ''
+            if translate:
+                print('translate:', translate)
 
-        print("position {}, selected text: {}".format(cursor.position(), selected_text))
+
+        print("on_selection_changed position {}".format(cursor.position()))
+
 
 def main():
     """Entry point for our simple vlc player
