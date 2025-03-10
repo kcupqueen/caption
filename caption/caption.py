@@ -1,3 +1,5 @@
+import time
+
 import webvtt
 
 
@@ -98,6 +100,7 @@ class LookUpType:
     SENTENCE = 2
 
 def lookup_caption(content, content_type):
+    time.sleep(2)
     if content_type == LookUpType.WORD:
         # mock data
         return '报复；报仇'

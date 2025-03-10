@@ -30,14 +30,11 @@ import sys
 
 from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
-from PyQt5.QtGui import QTextCharFormat, QFont
-
 from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType
 from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
 
-
-
+from widget.thread import QtThread
 
 
 class Player(QtWidgets.QMainWindow):
@@ -46,6 +43,7 @@ class Player(QtWidgets.QMainWindow):
 
     def __init__(self, master=None):
         QtWidgets.QMainWindow.__init__(self, master)
+        self.translation_threads = []
         self.setWindowTitle("SnakePlayer🐍")
 
         # Create a basic vlc instance
@@ -120,7 +118,7 @@ class Player(QtWidgets.QMainWindow):
         self.floatingWindow = FloatingTranslation(self)
 
         self.floatingWindow.windowClosed.connect(self.go_on_play)  # Connect signal to slot
-
+        self.floatingWindow.captionReady.connect(self.display_translation)
 
         self.vboxlayout = QtWidgets.QVBoxLayout()
         self.vboxlayout.addWidget(self.videoframe)
@@ -168,6 +166,13 @@ class Player(QtWidgets.QMainWindow):
             self.playbutton.setText("Pause")
             self.timer.start()
             self.is_paused = False
+
+    def display_translation(self, event=None):
+        pos = event['pos']
+        state = event['state']
+        print('display_translation', event)
+        self.floatingWindow.set_translation("signal received!! {}".format(event['text']), pos, state)
+
 
     def play_pause(self):
         """Toggle play/pause status
@@ -329,22 +334,41 @@ class Player(QtWidgets.QMainWindow):
         cursor = self.caption.textCursor()
         if cursor.hasSelection():
             selected_text = cursor.selectedText()  # ✅ Get the selected text
-            translate = ''
-            if selected_text.isalpha() and ' ' not in selected_text:
-                translate = lookup_caption(selected_text, LookUpType.WORD)
-            elif selected_text.isalpha() and ' ' in selected_text:
-                translate = lookup_caption(selected_text, LookUpType.SENTENCE)
-            else:
-                translate = ''
             if selected_text:
                 self.pause("lookup")
                 cursor_rect = self.caption.cursorRect(cursor)
                 pos = self.caption.mapToGlobal(cursor_rect.bottomRight())
-                self.floatingWindow.set_translation(selected_text, pos)
+                self.floatingWindow.captionReady.emit({
+                    'text': "loading...",
+                    'pos': pos,
+                    "state": "loading"
+                })
+
+                def lookup_caption_task(text):
+                    return lookup_caption(text, LookUpType.WORD if ' ' not in text else LookUpType.SENTENCE)
+
+                def on_result(result):
+                    # emit again
+                    self.floatingWindow.captionReady.emit({
+                        'text': result,
+                        'pos': pos,
+                        "state": "loaded"
+                    })
+
+                # **存储多个线程，避免被覆盖**
+                if not hasattr(self, "translation_threads"):
+                    self.translation_threads = []  # 初始化线程列表
+
+                thread = QtThread(lookup_caption_task, selected_text)
+                thread.finished.connect(on_result)
+                thread.start()
+
+                self.translation_threads.append(thread)
+
+                # 清理已完成的线程
+                self.translation_threads = [t for t in self.translation_threads if t.isRunning()]
 
 
-
-        print("on_selection_changed position {}".format(cursor.position()))
 
 
 def main():
