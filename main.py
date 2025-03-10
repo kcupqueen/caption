@@ -117,7 +117,7 @@ class Player(QtWidgets.QMainWindow):
         self.caption_layout.addWidget(self.caption)
 
         # caption word lookup
-        self.floatingWindow = FloatingTranslation(self)  # 只创建一个实例
+        self.floatingWindow = FloatingTranslation(self)
 
 
 
@@ -160,6 +160,14 @@ class Player(QtWidgets.QMainWindow):
         self.timer.setInterval(100)
         self.timer.timeout.connect(self.update_ui)
 
+    def go_on_play(self, event=None):
+        print('go_on_play', event)
+        if not self.mediaplayer.is_playing():
+            self.mediaplayer.play()
+            self.playbutton.setText("Pause")
+            self.timer.start()
+            self.is_paused = False
+
     def play_pause(self):
         """Toggle play/pause status
         """
@@ -186,6 +194,14 @@ class Player(QtWidgets.QMainWindow):
                 self.resized = True
                 self.caption.resize(width, int(height/3))
                 pass
+
+    def pause(self, action):
+        if self.mediaplayer.is_playing():
+            self.mediaplayer.pause()
+            self.playbutton.setText("Play")
+            self.is_paused = True
+            self.timer.stop()
+            print('pause action: {}'.format(action))
 
 
     def stop(self):
@@ -311,15 +327,6 @@ class Player(QtWidgets.QMainWindow):
         cursor = self.caption.textCursor()
         if cursor.hasSelection():
             selected_text = cursor.selectedText()  # ✅ Get the selected text
-            # new_format = QTextCharFormat()
-            # font = QFont("Arial", 14, QFont.Bold)  # Arial font, size 14, bold
-            # new_format.setForeground(QtGui.QBrush(QtGui.QColor("blue")))  # Blue text
-            # font.setItalic(True)  # Italic
-            # new_format.setFont(font)
-            #
-            # self.caption.blockSignals(True)  # Block signals to prevent recursion
-            # cursor.mergeCharFormat(new_format)  # Apply format
-            # self.caption.blockSignals(False)  # Unblock signals
             translate = ''
             if selected_text.isalpha() and ' ' not in selected_text:
                 translate = lookup_caption(selected_text, LookUpType.WORD)
@@ -328,10 +335,12 @@ class Player(QtWidgets.QMainWindow):
             else:
                 translate = ''
             if translate:
-                print('translate:', translate)
+                self.pause("lookup")
                 cursor_rect = self.caption.cursorRect(cursor)
-                pos = self.caption.mapToGlobal(cursor_rect.bottomRight())  # 获取全局坐标
-                self.floatingWindow.set_translation(selected_text, pos)  # 传递位置数据
+                pos = self.caption.mapToGlobal(cursor_rect.bottomRight())
+                self.floatingWindow = FloatingTranslation(self)
+                self.floatingWindow.windowClosed.connect(self.go_on_play)  # Connect signal to slot
+                self.floatingWindow.set_translation(selected_text, pos)
 
 
 
