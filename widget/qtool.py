@@ -1,0 +1,84 @@
+import sys
+from PyQt5.QtWidgets import QApplication, QTextEdit, QLabel, QPushButton, QVBoxLayout, QWidget
+from PyQt5.QtGui import QTextCursor
+from PyQt5.QtCore import Qt, QPoint
+
+class FloatingTranslation(QWidget):
+    """悬浮翻译窗口"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint)  # 无边框悬浮窗口
+        self.setStyleSheet("background-color: white; border: 1px solid black; padding: 5px;")
+
+        # 创建翻译文本显示
+        self.label = QLabel("翻译内容", self)
+
+        # 收藏按钮
+        self.save_button = QPushButton("⭐ 收藏")
+        self.save_button.clicked.connect(self.save_translation)
+
+        # 布局
+        layout = QVBoxLayout()
+        layout.addWidget(self.label)
+        layout.addWidget(self.save_button)
+        self.setLayout(layout)
+
+        self.saved_translations = []  # 存储收藏的翻译
+        self.relative_pos = QPoint(0, 0)  # 记录相对位置
+
+    def set_translation(self, text, pos, main_window_pos):
+        """更新翻译文本，并显示在指定位置"""
+        self.label.setText(f"翻译: {text[::-1]}")  # 模拟翻译（反转文本）
+
+        # 计算相对位置（窗口与主窗口的偏移）
+        self.relative_pos = pos - main_window_pos
+        self.move(pos)  # 移动到指定位置
+        self.show()
+
+    def save_translation(self):
+        """收藏翻译"""
+        translation_text = self.label.text()
+        if translation_text not in self.saved_translations:
+            self.saved_translations.append(translation_text)
+            print("已收藏:", translation_text)  # 这里可以改成存入数据库或文件
+
+    def update_position(self, main_window_pos):
+        """当主窗口移动时，更新悬浮窗口位置"""
+        self.move(main_window_pos + self.relative_pos)
+
+class TranslatorApp(QWidget):
+    """主界面"""
+    def __init__(self):
+        super().__init__()
+
+        self.textEdit = QTextEdit()
+        self.textEdit.setText("Select any text to translate.")
+        self.textEdit.mouseReleaseEvent = self.show_translation  # 监听鼠标释放事件
+
+        self.floatingWindow = FloatingTranslation(self)  # 创建悬浮翻译窗口
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.textEdit)
+        self.setLayout(layout)
+
+    def show_translation(self, event):
+        """选中文字后显示悬浮翻译窗口"""
+        cursor = self.textEdit.textCursor()
+        if cursor.hasSelection():
+            selected_text = cursor.selectedText()
+            cursor_rect = self.textEdit.cursorRect(cursor)
+            pos = self.textEdit.mapToGlobal(cursor_rect.bottomRight())  # 获取全局坐标
+            main_window_pos = self.pos()  # 获取主窗口位置
+
+            self.floatingWindow.set_translation(selected_text, pos, main_window_pos)  # 传递位置数据
+
+    def moveEvent(self, event):
+        """当主窗口移动时，更新悬浮窗口的位置"""
+        self.floatingWindow.update_position(self.pos())
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = TranslatorApp()
+    window.resize(500, 300)
+    window.show()
+    sys.exit(app.exec_())
