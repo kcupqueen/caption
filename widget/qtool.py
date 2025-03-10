@@ -1,59 +1,46 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QTextEdit, QLabel, QPushButton, QVBoxLayout, QWidget
 from PyQt5.QtGui import QTextCursor
-from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtCore import Qt, QPoint, QEvent
 
 class FloatingTranslation(QWidget):
-    """悬浮翻译窗口（可独立使用）"""
+    """悬浮翻译窗口（点击外部自动关闭）"""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # 悬浮窗口
+        self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setStyleSheet("background-color: white; border: 1px solid black; padding: 5px;")
+
+        self.setAttribute(Qt.WA_DeleteOnClose)  # 关闭后释放内存 ✅
 
         # 翻译文本
         self.label = QLabel("翻译内容", self)
-
-        # 收藏按钮
         self.save_button = QPushButton("⭐ 收藏")
         self.save_button.clicked.connect(self.save_translation)
 
-        # 布局
         layout = QVBoxLayout()
         layout.addWidget(self.label)
         layout.addWidget(self.save_button)
         self.setLayout(layout)
 
-        self.saved_translations = []  # 存储收藏的翻译
-        self.relative_pos = QPoint(0, 0)  # 记录相对位置
-        self.main_window = parent  # 绑定主窗口
-
-        if self.main_window:
-            self.main_window.installEventFilter(self)  # 监听主窗口事件
+        # 监听全局鼠标点击事件
+        QApplication.instance().installEventFilter(self)
 
     def set_translation(self, text, pos):
-        """更新翻译文本，并显示在指定位置"""
-        self.label.setText(f"翻译: {text[::-1]}")  # 模拟翻译（反转文本）
-        self.relative_pos = pos - self.main_window.pos() if self.main_window else QPoint(0, 0)
+        """设置翻译内容，并移动到指定位置"""
+        self.label.setText(f"翻译: {text[::-1]}")  # 模拟翻译
         self.move(pos)
         self.show()
 
     def save_translation(self):
         """收藏翻译"""
-        translation_text = self.label.text()
-        if translation_text not in self.saved_translations:
-            self.saved_translations.append(translation_text)
-            print("已收藏:", translation_text)  # 这里可以改成存入数据库或文件
+        print("已收藏:", self.label.text())
 
     def eventFilter(self, obj, event):
-        """监听主窗口的移动事件"""
-        if obj == self.main_window and event.type() == event.Move:
-            self.move(self.main_window.pos() + self.relative_pos)
+        """监听鼠标点击事件，判断是否点击到了窗口外部"""
+        if event.type() == QEvent.MouseButtonPress:
+            if not self.geometry().contains(event.globalPos()):  # 判断是否点击到窗口外部
+                self.hide()
         return super().eventFilter(obj, event)
-
-    def focusOutEvent(self, event):
-        """当失去焦点（点击外部）时自动关闭"""
-        print('focusOutEvent')
-        self.close()
 
 class TranslatorApp(QWidget):
     """主界面"""
@@ -62,22 +49,22 @@ class TranslatorApp(QWidget):
 
         self.textEdit = QTextEdit()
         self.textEdit.setText("Select any text to translate.")
-        self.textEdit.mouseReleaseEvent = self.show_translation  # 监听鼠标释放事件
-
-        self.floatingWindow = FloatingTranslation(self)  # 创建可复用的悬浮翻译窗口
+        self.textEdit.mouseReleaseEvent = self.show_translation
 
         layout = QVBoxLayout()
         layout.addWidget(self.textEdit)
         self.setLayout(layout)
 
     def show_translation(self, event):
-        """选中文字后显示悬浮翻译窗口"""
+        """选中文字后创建新的 FloatingTranslation 窗口"""
         cursor = self.textEdit.textCursor()
         if cursor.hasSelection():
             selected_text = cursor.selectedText()
             cursor_rect = self.textEdit.cursorRect(cursor)
-            pos = self.textEdit.mapToGlobal(cursor_rect.bottomRight())  # 获取全局坐标
-            self.floatingWindow.set_translation(selected_text, pos)  # 传递位置数据
+            pos = self.textEdit.mapToGlobal(cursor_rect.bottomRight())
+
+            floating_window = FloatingTranslation(self)  # 创建新窗口
+            floating_window.set_translation(selected_text, pos)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

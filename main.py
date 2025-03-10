@@ -111,7 +111,7 @@ class Player(QtWidgets.QMainWindow):
         welcomeHtml = get_template("welcome", "subtitles will be displayed here, you can select the text and look up the meaning while watching the video")
         self.caption.setHtml(welcomeHtml)
         # register selectionChanged signal
-        self.caption.selectionChanged.connect(self.on_selection_changed)
+        self.caption.mouseReleaseEvent = self.on_selection_changed
         # Create a separate layout for the caption
         self.caption_layout = QtWidgets.QVBoxLayout()
         self.caption_layout.addWidget(self.caption)
@@ -307,7 +307,7 @@ class Player(QtWidgets.QMainWindow):
                 self.captionList = ret
                 self.caption.setText("load caption {} successfully, length:{} ".format(filename, len(ret)))
 
-    def on_selection_changed(self):
+    def on_selection_changed(self, event):
         cursor = self.caption.textCursor()
         if cursor.hasSelection():
             selected_text = cursor.selectedText()  # ✅ Get the selected text
