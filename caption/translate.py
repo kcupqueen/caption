@@ -104,23 +104,9 @@ class OfflineTranslator:
             self.db.close()
 
 
-# def test_lookup():
-#     # print current path
-#     import os
-#     print(os.getcwd())
-#     """测试 OfflineTranslator 的 lookup 方法"""
-#     # 使用一个临时数据库（避免影响正式数据）
-#     test_db_path = "./mdx.db"
-#     #
-#     # # 初始化翻译器
-#     translator = OfflineTranslator(test_db_path)
-#     # # 测试查找
-#     # print("Testing lookup:")
-#     print("cursor =>", translator.lookup("money"))
-#     # print("world =>", translator.lookup("broken"))
-#     # print("python =>", translator.lookup("python"))
-#     # # 关闭数据库
-#     # del translator
-#
-# # 运行测试
-# test_lookup()
+class OnlineTranslator:
+    def __init__(self):
+        pass
+
+    def lookup(self, text):
+        pass
