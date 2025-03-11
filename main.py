@@ -31,6 +31,7 @@ import sys
 from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
 from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType
+from caption.translate import OfflineTranslator
 from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
 
@@ -60,6 +61,8 @@ class Player(QtWidgets.QMainWindow):
         self.resized = False
         self.captionList = []
         self.cur_caption_seq = set()
+        test_db_path = "./mdx.db"
+        self.translator = OfflineTranslator(test_db_path)
 
     def create_ui(self):
         """Set up the user interface, signals & slots
@@ -170,9 +173,12 @@ class Player(QtWidgets.QMainWindow):
     def display_translation(self, event=None):
         pos = event['pos']
         state = event['state']
-        print('display_translation', event)
-        self.floatingWindow.set_translation("signal received!! {}".format(event['text']), pos, state)
+        text = event['text']
+        if text:
 
+            self.floatingWindow.set_translation("signal received!! {} chars".format(len(text)), pos, state)
+        else:
+            self.floatingWindow.set_translation("None", pos, state)
 
     def play_pause(self):
         """Toggle play/pause status
@@ -345,10 +351,11 @@ class Player(QtWidgets.QMainWindow):
                 })
 
                 def lookup_caption_task(text):
-                    return lookup_caption(text, LookUpType.WORD if ' ' not in text else LookUpType.SENTENCE)
+                    return self.translator.lookup(text)
 
                 def on_result(result):
                     # emit again
+                    print("result", result)
                     self.floatingWindow.captionReady.emit({
                         'text': result,
                         'pos': pos,

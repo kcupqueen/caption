@@ -32,7 +32,7 @@ class FloatingTranslation(QWidget):
     def set_translation(self, text, pos, state):
         """设置翻译内容，并移动到指定位置"""
         if state == "loaded":
-            self.label.setText(f"The pyramid at Meidum is thought to be just the second pyramid of four built by Sneferu")  # 模拟翻译
+            self.label.setText(text)  # 模拟翻译
         else:
             self.label.setText(f"loading")  # 模拟翻译
         self.move(pos)
