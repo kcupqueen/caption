@@ -31,7 +31,7 @@ import sys
 from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
 from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType
-from caption.translate import OfflineTranslator
+from caption.translate import OfflineTranslator, WordTranslation
 from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
 
@@ -175,10 +175,8 @@ class Player(QtWidgets.QMainWindow):
         state = event['state']
         text = event['text']
         if text:
+            self.floatingWindow.set_translation(text, pos, state)
 
-            self.floatingWindow.set_translation("signal received!! {} chars".format(len(text)), pos, state)
-        else:
-            self.floatingWindow.set_translation("None", pos, state)
 
     def play_pause(self):
         """Toggle play/pause status
@@ -356,6 +354,11 @@ class Player(QtWidgets.QMainWindow):
                 def on_result(result):
                     # emit again
                     print("result", result)
+                    if isinstance(result, WordTranslation) and len(result.meanings) > 0:
+                        # join all meanings
+                        result = "\n".join(result.meanings)
+                    else:
+                        result = "No translation found"
                     self.floatingWindow.captionReady.emit({
                         'text': result,
                         'pos': pos,

@@ -1,5 +1,6 @@
 from peewee import SqliteDatabase, Model, IntegerField, CharField
 from bs4 import BeautifulSoup
+import spacy
 
 
 # Define the base model class without binding to a specific database
@@ -34,6 +35,7 @@ class OfflineTranslator:
     def __init__(self, mdx_db_path):
         self.mdx_db_path = mdx_db_path
         self.db = SqliteDatabase(mdx_db_path)
+        self.nlp = spacy.load("en_core_web_sm")
 
         # 绑定数据库到 Peewee 模型
         self.db.bind([Mdx])
@@ -64,23 +66,36 @@ class OfflineTranslator:
                     for mw_zh in mw_zh_list:
                         print(mw_zh.text)
                         meanings.append(mw_zh.text)
+        return WordTranslation(meanings, [])
 
 
 
 
 
-    @staticmethod
-    def lookup(text):
+    def lookup(self, text, retry=0):
         """查找词条的释义"""
         try:
-            mdx = Mdx.get(Mdx.entry == text)
+            if retry > 1:
+                raise Exception("retry too many times")
+            raw = text
+            doc = self.nlp(text)
+            lemmas = [token.lemma_ for token in doc]
+            print("raw", lemmas)
+            if len(lemmas) > 1:
+                raise Exception("multi words")
+            if len(lemmas) > 0:
+                raw = lemmas[0]
+            mdx = Mdx.get_or_none(Mdx.entry == text)
+            print("sql done", mdx)
             if mdx and mdx.paraphrase:
                 #print(mdx.paraphrase
-                print("get mdx")
-                return mdx.paraphrase
+                print("get mdx entry", mdx.entry)
+                return OfflineTranslator.parse_mdx(mdx.paraphrase)
             else:
-                return None
-        except Mdx.DoesNotExist:
+                print("retry lookup", raw)
+                return self.lookup(raw, retry + 1)
+        except Exception as e:
+            print("lookup error", e)
             return None
 
     def __del__(self):
@@ -89,23 +104,23 @@ class OfflineTranslator:
             self.db.close()
 
 
-def test_lookup():
-    # print current path
-    import os
-    print(os.getcwd())
-    """测试 OfflineTranslator 的 lookup 方法"""
-    # 使用一个临时数据库（避免影响正式数据）
-    test_db_path = "./mdx.db"
-    #
-    # # 初始化翻译器
-    translator = OfflineTranslator(test_db_path)
-    # # 测试查找
-    # print("Testing lookup:")
-    print("cursor =>", translator.lookup("money"))
-    # print("world =>", translator.lookup("broken"))
-    # print("python =>", translator.lookup("python"))
-    # # 关闭数据库
-    # del translator
-
-# 运行测试
-test_lookup()
+# def test_lookup():
+#     # print current path
+#     import os
+#     print(os.getcwd())
+#     """测试 OfflineTranslator 的 lookup 方法"""
+#     # 使用一个临时数据库（避免影响正式数据）
+#     test_db_path = "./mdx.db"
+#     #
+#     # # 初始化翻译器
+#     translator = OfflineTranslator(test_db_path)
+#     # # 测试查找
+#     # print("Testing lookup:")
+#     print("cursor =>", translator.lookup("money"))
+#     # print("world =>", translator.lookup("broken"))
+#     # print("python =>", translator.lookup("python"))
+#     # # 关闭数据库
+#     # del translator
+#
+# # 运行测试
+# test_lookup()
