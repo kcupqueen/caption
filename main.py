@@ -44,6 +44,7 @@ class Player(QtWidgets.QMainWindow):
 
     def __init__(self, master=None):
         QtWidgets.QMainWindow.__init__(self, master)
+        self.caption_menu = None
         self.subtitle_tracks = []
         self.audio_tracks = []
         self.translation_threads = []
@@ -138,7 +139,8 @@ class Player(QtWidgets.QMainWindow):
         # File menu
         file_menu = menu_bar.addMenu("File")
         # Caption menu
-        caption_menu = menu_bar.addMenu("Caption")
+        caption_menu = menu_bar.addMenu("Caption&Audio")
+        self.caption_menu = caption_menu
 
         # Add actions to file menu
         open_action = QtWidgets.QAction("Load Video", self)
@@ -164,25 +166,78 @@ class Player(QtWidgets.QMainWindow):
         self.timer.setInterval(100)
         self.timer.timeout.connect(self.update_ui)
 
-
+    
     def track_parsed(self, event):
-        # print all tracks
-        # 获取音频轨道
+        # Use invokeMethod to update UI from the main thread
+        QtCore.QMetaObject.invokeMethod(self, "update_tracks_menu", 
+                                      QtCore.Qt.ConnectionType.QueuedConnection)
+
+    @QtCore.pyqtSlot()
+    def update_tracks_menu(self):
+        """Update the tracks menu from the main thread"""
+        # Clear existing menu items
+        self.caption_menu.clear()
+        
+        # Add caption loading action back
+        caption_action = QtWidgets.QAction("Load Caption", self)
+        caption_action.triggered.connect(self.load_caption)
+        self.caption_menu.addAction(caption_action)
+        self.caption_menu.addSeparator()
+        
+        # Add audio tracks submenu
+        audio_menu = self.caption_menu.addMenu("Audio Tracks")
         audio_tracks = self.mediaplayer.audio_get_track_description()
+        current_audio = self.mediaplayer.audio_get_track()
+        
         print("Audio Tracks:")
-        for track in audio_tracks:
-            print(f"Track ID: {track}")
+        for track_id, track_name in audio_tracks:
+            # Add checkmark emoji if this is the current track
+            prefix = "✓ " if track_id == current_audio else "    "
+            action = QtWidgets.QAction(f"{prefix}Audio: {track_name.decode()}", self)
+            action.setData(track_id)
+            action.triggered.connect(lambda checked, tid=track_id: self.set_audio_track(tid))
+            audio_menu.addAction(action)
+
         if len(audio_tracks) > 0:
             self.audio_tracks = audio_tracks
 
-        # 获取字幕轨道
+        # Add subtitle tracks submenu
+        subtitle_menu = self.caption_menu.addMenu("Subtitle Tracks")
         subtitle_tracks = self.mediaplayer.video_get_spu_description()
+        current_spu = self.mediaplayer.video_get_spu()
+        
         print("Subtitle Tracks:")
-        for track in subtitle_tracks:
-            print(f"Track ID: {track}")
+        for track_id, track_name in subtitle_tracks:
+            # Add checkmark emoji if this is the current track
+            prefix = "✓ " if track_id == current_spu else "    "
+            action = QtWidgets.QAction(f"{prefix}Subtitle: {track_name.decode()}", self)
+            action.setData(track_id)
+            action.triggered.connect(lambda checked, tid=track_id: self.set_subtitle_track(tid))
+            subtitle_menu.addAction(action)
+        
         if len(subtitle_tracks) > 0:
             self.subtitle_tracks = subtitle_tracks
+        
         print("embedded audio tracks", len(self.audio_tracks), "subtitle tracks", len(self.subtitle_tracks))
+    
+
+    def set_audio_track(self, track_id):
+        """Set the audio track"""
+        print(f"Setting audio track to {track_id}")
+        self.mediaplayer.audio_set_track(track_id)
+        current_track = self.mediaplayer.audio_get_track()
+        print("current track is", current_track)
+        self.update_tracks_menu()
+
+
+    def set_subtitle_track(self, track_id):
+        """Set the subtitle track"""
+        print(f"Setting subtitle track to {track_id}")
+        self.mediaplayer.video_set_spu(track_id)
+        # Get current SPU track ID to verify
+        current_spu = self.mediaplayer.video_get_spu()
+        print(f"Current subtitle track is now: {current_spu}")
+        self.update_tracks_menu()
 
 
     def go_on_play(self, event=None):
