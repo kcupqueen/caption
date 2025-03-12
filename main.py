@@ -44,6 +44,8 @@ class Player(QtWidgets.QMainWindow):
 
     def __init__(self, master=None):
         QtWidgets.QMainWindow.__init__(self, master)
+        self.subtitle_tracks = []
+        self.audio_tracks = []
         self.translation_threads = []
         self.setWindowTitle("SnakePlayer🐍")
 
@@ -170,12 +172,18 @@ class Player(QtWidgets.QMainWindow):
         print("Audio Tracks:")
         for track in audio_tracks:
             print(f"Track ID: {track}")
+        if len(audio_tracks) > 0:
+            self.audio_tracks = audio_tracks
 
         # 获取字幕轨道
         subtitle_tracks = self.mediaplayer.video_get_spu_description()
         print("Subtitle Tracks:")
         for track in subtitle_tracks:
             print(f"Track ID: {track}")
+        if len(subtitle_tracks) > 0:
+            self.subtitle_tracks = subtitle_tracks
+        print("embedded audio tracks", len(self.audio_tracks), "subtitle tracks", len(self.subtitle_tracks))
+
 
     def go_on_play(self, event=None):
         print('go_on_play', event)
@@ -184,6 +192,7 @@ class Player(QtWidgets.QMainWindow):
             self.playbutton.setText("Pause")
             self.timer.start()
             self.is_paused = False
+        self.track_parsed(event)
 
     def display_translation(self, event=None):
         pos = event['pos']
@@ -276,7 +285,8 @@ class Player(QtWidgets.QMainWindow):
 
 
         event_manager.event_attach(vlc.EventType.MediaPlayerTimeChanged, time_changed_callback)
-
+        # attack play event
+        event_manager.event_attach(vlc.EventType.MediaPlayerPlaying, self.go_on_play)
         # Parse the metadata of the file
         self.media.parse()
 
