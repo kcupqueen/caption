@@ -162,6 +162,21 @@ class Player(QtWidgets.QMainWindow):
         self.timer.setInterval(100)
         self.timer.timeout.connect(self.update_ui)
 
+
+    def track_parsed(self, event):
+        # print all tracks
+        # 获取音频轨道
+        audio_tracks = self.mediaplayer.audio_get_track_description()
+        print("Audio Tracks:")
+        for track in audio_tracks:
+            print(f"Track ID: {track}")
+
+        # 获取字幕轨道
+        subtitle_tracks = self.mediaplayer.video_get_spu_description()
+        print("Subtitle Tracks:")
+        for track in subtitle_tracks:
+            print(f"Track ID: {track}")
+
     def go_on_play(self, event=None):
         print('go_on_play', event)
         if not self.mediaplayer.is_playing():
