@@ -26,11 +26,12 @@ Date: 25 December 2018
 
 import platform
 import os
-import sys
+import sys, time
 
 from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
 from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType
+from caption.extract import get_subtitle_tracks
 from caption.translate import OfflineTranslator, WordTranslation
 from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
@@ -48,7 +49,7 @@ class Player(QtWidgets.QMainWindow):
         self.subtitle_tracks = []
         self.audio_tracks = []
         self.translation_threads = []
-        self.setWindowTitle("SnakePlayer🐍")
+        self.setWindowTitle("SwordPlayer🗡️")
 
         # Create a basic vlc instance
         self.instance = vlc.Instance()
@@ -210,10 +211,11 @@ class Player(QtWidgets.QMainWindow):
         for track_id, track_name in subtitle_tracks:
             # Add checkmark emoji if this is the current track
             prefix = "✓ " if track_id == current_spu else "    "
-            action = QtWidgets.QAction(f"{prefix}Subtitle: {track_name.decode()}", self)
+            action = QtWidgets.QAction(f"{prefix}Subtitle: {track_name.decode()} {track_id}", self)
             action.setData(track_id)
             action.triggered.connect(lambda checked, tid=track_id: self.set_subtitle_track(tid))
             subtitle_menu.addAction(action)
+
         
         if len(subtitle_tracks) > 0:
             self.subtitle_tracks = subtitle_tracks
@@ -326,6 +328,11 @@ class Player(QtWidgets.QMainWindow):
         filename = QtWidgets.QFileDialog.getOpenFileName(self, dialog_txt, os.path.expanduser('~'))
         if not filename:
             return
+        ffmpeg_tracks = get_subtitle_tracks(filename[0])
+        print(ffmpeg_tracks)
+        self.caption.setText("load video {} successfully, subtitle tracks: {}".format(filename, ffmpeg_tracks))
+
+
 
         # getOpenFileName returns a tuple, so use only the actual file name
         self.media = self.instance.media_new(filename[0])
@@ -379,6 +386,7 @@ class Player(QtWidgets.QMainWindow):
         elif platform.system() == "Darwin": # for MacOS
             self.mediaplayer.set_nsobject(int(self.videoframe.winId()))
 
+        time.sleep(5)
         self.play_pause()
 
     def set_volume(self, volume):

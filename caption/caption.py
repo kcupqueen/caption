@@ -1,11 +1,41 @@
 import time
-
+import os
 import webvtt
+from webvtt import WebVTT
 
 
-def get_captions(vtt_file):
+def convert_srt_to_vtt(srt_file):
+    """Convert SRT file to VTT format"""
+    # Create a temporary VTT file path
+    vtt_file = srt_file.rsplit('.', 1)[0] + '.vtt'
+    
+    try:
+        # Use webvtt-py's built-in conversion
+        webvtt.from_srt(srt_file).save(vtt_file)
+        return vtt_file
+    except Exception as e:
+        print(f"Error converting SRT to VTT: {str(e)}")
+        return None
+
+def get_captions(subtitle_file):
     captions = []
     i = 0
+    
+    # Check file extension
+    file_ext = os.path.splitext(subtitle_file)[1].lower()
+    vtt_file = subtitle_file
+    
+    if file_ext == '.srt':
+        print("Converting SRT to VTT format...")
+        vtt_file = convert_srt_to_vtt(subtitle_file)
+        if not vtt_file:
+            print("Failed to convert SRT file")
+            return captions
+    elif file_ext != '.vtt':
+        print("Unsupported subtitle format. Please use .vtt or .srt files")
+        return captions
+    
+    # Read the VTT file
     for caption in webvtt.read(vtt_file):
         x = {'caption': caption, 'seq': i}
         i += 1
