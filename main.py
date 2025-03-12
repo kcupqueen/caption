@@ -238,6 +238,24 @@ class Player(QtWidgets.QMainWindow):
         current_spu = self.mediaplayer.video_get_spu()
         print(f"Current subtitle track is now: {current_spu}")
         self.update_tracks_menu()
+        self.extrat_embedded_subtitle()
+
+    def extrat_embedded_subtitle(self):
+         # Try to get subtitle stats/content
+        try:
+            spu_stats = self.mediaplayer.spu_stats()
+            if spu_stats:
+                print("SPU Stats:", spu_stats)
+                
+            # Get all subtitle descriptions
+            spu_desc = self.mediaplayer.video_get_spu_description()
+            if spu_desc:
+                print("SPU Descriptions:")
+                for id, desc in spu_desc:
+                    print(f"ID: {id}, Description: {desc.decode()}")
+                    
+        except Exception as e:
+            print("Error getting SPU content:", str(e))
 
 
     def go_on_play(self, event=None):
