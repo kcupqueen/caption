@@ -1,3 +1,5 @@
+import os
+
 import ffmpeg
 
 def get_subtitle_tracks(video_path):
@@ -6,6 +8,7 @@ def get_subtitle_tracks(video_path):
     subtitle_tracks = []
     
     for stream in metadata['streams']:
+        print(stream)
         if stream['codec_type'] == 'subtitle':
             track_index = stream['index']
             codec_name = stream.get('codec_name', 'unknown')
@@ -33,9 +36,28 @@ def extract_subtitles(video_path, output_srt="output.srt", track_index=0):
     except ffmpeg.Error as e:
         print("提取字幕时出错:", e)
 
-ts = get_subtitle_tracks("/home/ssx/code/youtube/test5.mkv")
-for t in ts:
-    print(t)
- 
-# 使用示例
-extract_subtitles("/home/ssx/code/youtube/test5.mkv", "./output.srt", track_index=0)
+# "/home/ssx/code/youtube/test5.mkv"
+def extract_all(video_path):
+    """ 提取视频中的所有字幕轨道 """
+    tracks = get_subtitle_tracks(video_path)
+    paths = []
+    langs = []
+    i = 0
+    for track in tracks:
+        print(f"extract track {i} ({track})...")
+        try:
+            t_index = track[0]
+            print("extract index=", i)
+            subtitle_name = f"{os.path.splitext(video_path)[0]}_{t_index}.srt"
+            extract_subtitles(video_path, subtitle_name, track_index=i)
+            paths.append(subtitle_name)
+            langs.append(track[2])
+
+        except Exception as e:
+            print(f"提取字幕轨道 {i} ({track}) 时出错:", e)
+        finally:
+            i += 1
+    return paths,langs
+
+#extract_all("/home/ssx/code/youtube/test5.mkv")
+#extract_subtitles("/home/ssx/code/youtube/test5.mkv", "/home/ssx/code/youtube/test5.srt", track_index=0)

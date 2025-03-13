@@ -1,17 +1,17 @@
 import time
 import os
 import webvtt
-from webvtt import WebVTT
 
-
-def convert_srt_to_vtt(srt_file):
+def convert_srt_to_vtt(srt_file, delete_srt=False):
     """Convert SRT file to VTT format"""
     # Create a temporary VTT file path
-    vtt_file = srt_file.rsplit('.', 1)[0] + '.vtt'
-    
+    vtt_file = srt_file.rsplit('.', 1)[0]  + '.vtt'
+
     try:
         # Use webvtt-py's built-in conversion
         webvtt.from_srt(srt_file).save(vtt_file)
+        if delete_srt:
+            os.remove(srt_file)
         return vtt_file
     except Exception as e:
         print(f"Error converting SRT to VTT: {str(e)}")

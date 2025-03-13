@@ -30,8 +30,8 @@ import sys, time
 
 from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
-from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType
-from caption.extract import get_subtitle_tracks
+from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType, convert_srt_to_vtt
+from caption.extract import get_subtitle_tracks, extract_all
 from caption.translate import OfflineTranslator, WordTranslation
 from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
@@ -45,6 +45,8 @@ class Player(QtWidgets.QMainWindow):
 
     def __init__(self, master=None):
         QtWidgets.QMainWindow.__init__(self, master)
+        self.play_triggered_times = 0
+        self.sub_file_num = 0
         self.caption_menu = None
         self.subtitle_tracks = []
         self.audio_tracks = []
@@ -201,24 +203,25 @@ class Player(QtWidgets.QMainWindow):
 
         if len(audio_tracks) > 0:
             self.audio_tracks = audio_tracks
+        self.mediaplayer.video_set_spu(-1)
 
-        # Add subtitle tracks submenu
         subtitle_menu = self.caption_menu.addMenu("Subtitle Tracks")
-        subtitle_tracks = self.mediaplayer.video_get_spu_description()
-        current_spu = self.mediaplayer.video_get_spu()
-        
-        print("Subtitle Tracks:")
-        for track_id, track_name in subtitle_tracks:
+        subtitle_tracks = self.subtitle_tracks
+        if len(subtitle_tracks) == 0:
+            return
+
+        current_spu = 0
+        print("All Subtitle Tracks: ", len(subtitle_tracks), "extract file num", self.sub_file_num)
+        for track in subtitle_tracks:
+            print(f"Subtitle Track: {track}")
+            track_id = track[0]
+            track_name = track[1]
             # Add checkmark emoji if this is the current track
             prefix = "✓ " if track_id == current_spu else "    "
-            action = QtWidgets.QAction(f"{prefix}Subtitle: {track_name.decode()} {track_id}", self)
+            action = QtWidgets.QAction(f"{prefix}Subtitle: {track_name} {track_id}", self)
             action.setData(track_id)
             action.triggered.connect(lambda checked, tid=track_id: self.set_subtitle_track(tid))
             subtitle_menu.addAction(action)
-
-        
-        if len(subtitle_tracks) > 0:
-            self.subtitle_tracks = subtitle_tracks
         
         print("embedded audio tracks", len(self.audio_tracks), "subtitle tracks", len(self.subtitle_tracks))
     
@@ -240,9 +243,9 @@ class Player(QtWidgets.QMainWindow):
         current_spu = self.mediaplayer.video_get_spu()
         print(f"Current subtitle track is now: {current_spu}")
         self.update_tracks_menu()
-        self.extrat_embedded_subtitle()
+        self.extract_embedded_subtitle()
 
-    def extrat_embedded_subtitle(self):
+    def extract_embedded_subtitle(self):
          # Try to get subtitle stats/content
         try:
             spu_stats = self.mediaplayer.spu_stats()
@@ -262,12 +265,14 @@ class Player(QtWidgets.QMainWindow):
 
     def go_on_play(self, event=None):
         print('go_on_play', event)
+        self.play_triggered_times += 1
         if not self.mediaplayer.is_playing():
             self.mediaplayer.play()
             self.playbutton.setText("Pause")
             self.timer.start()
             self.is_paused = False
-        self.track_parsed(event)
+        if self.play_triggered_times < 2:
+            self.track_parsed(event)
 
     def display_translation(self, event=None):
         pos = event['pos']
@@ -288,7 +293,7 @@ class Player(QtWidgets.QMainWindow):
             self.timer.stop()
         else:
             if self.mediaplayer.play() == -1:
-                self.open_file()
+                #self.open_file()
                 return
 
             self.mediaplayer.play()
@@ -386,8 +391,25 @@ class Player(QtWidgets.QMainWindow):
         elif platform.system() == "Darwin": # for MacOS
             self.mediaplayer.set_nsobject(int(self.videoframe.winId()))
 
-        time.sleep(5)
-        self.play_pause()
+        # disable playbutton
+        self.playbutton.setEnabled(False)
+        # extract all subtitles
+        sub_files, langs = extract_all(filename[0])
+        for i, sub_file in enumerate(sub_files):
+            vtt = convert_srt_to_vtt(sub_file, True)
+            sub_files[i] = vtt
+
+        for i, lang in enumerate(langs):
+            self.subtitle_tracks.append((i, lang, lang))
+
+        self.sub_file_num = len(sub_files)
+        print("x(self.sub_file_num)", self.sub_file_num)
+        self.playbutton.setEnabled(True)
+        if self.sub_file_num > 0:
+            # choose the first subtitle track as default
+            self.backend_load_caption(sub_files[0])
+            print("auto load subtitle tracks", self.subtitle_tracks)
+
 
     def set_volume(self, volume):
         """Set the volume
@@ -434,6 +456,9 @@ class Player(QtWidgets.QMainWindow):
         dialog_txt = "Choose Caption File"
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, dialog_txt, os.path.expanduser('~'),
                                                             "webVTT (*.vtt);;srt Files (*.srt);;All Files (*)")
+        self.backend_load_caption(filename)
+
+    def backend_load_caption(self, filename):
         if filename:
             ret = get_captions(filename)
             if len(ret) > 0:
