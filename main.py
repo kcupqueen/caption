@@ -70,6 +70,21 @@ class Player(QtWidgets.QMainWindow):
         test_db_path = "./mdx.db"
         self.translator = OfflineTranslator(test_db_path)
 
+
+    def clear_cache(self):
+        self.play_triggered_times = 0
+        self.sub_file_num = 0
+        self.subtitle_tracks = []
+        self.audio_tracks = []
+        if len(self.translation_threads) > 0:
+            for thread in self.translation_threads:
+                thread.quit()
+        self.translation_threads = []
+        self.captionList = []
+        self.cur_caption_seq = set()
+        self.update_tracks_menu()
+
+
     def create_ui(self):
         """Set up the user interface, signals & slots
         """
@@ -328,7 +343,7 @@ class Player(QtWidgets.QMainWindow):
     def open_file(self):
         """Open a media file in a MediaPlayer
         """
-
+        self.clear_cache()
         dialog_txt = "Choose Media File"
         filename = QtWidgets.QFileDialog.getOpenFileName(self, dialog_txt, os.path.expanduser('~'))
         if not filename:
