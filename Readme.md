@@ -10,10 +10,10 @@
 
 ## player
 - [x] feature mkv metadata
-- [ ] feature 播放器布局调整
+- [x] feature 播放器布局调整
 - [ ] feature 播放器暂停与恢复
-- [ ] feature 内置字幕关闭
-- [ ] feature 不要自动播放
+- [x] feature 内置字幕关闭
+- [x] feature 不要自动播放
 
 ## installer
 - [ ] feature 安装包
