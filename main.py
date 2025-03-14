@@ -27,6 +27,7 @@ Date: 25 December 2018
 import platform
 import os
 import sys, time
+from pathlib import Path
 
 from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
@@ -39,7 +40,7 @@ from widget.slider import VideoSlider, ClickableSlider
 from widget.thread import QtThread
 
 # TODO only for development
-BASE_DIR = os.path.abspath(".")
+BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = "en_core_web_sm"
 check_list = {
     "en_core_web_sm": False,
@@ -60,7 +61,7 @@ class Player(QtWidgets.QMainWindow):
         self.setWindowTitle("SwordPlayer🗡️")
 
         # Create a basic vlc instance
-        self.instance = vlc.Instance()
+        self.instance = vlc.Instance("--file-caching=5000", "--network-caching=5000")
 
         self.media = None
 
@@ -72,8 +73,8 @@ class Player(QtWidgets.QMainWindow):
         self.is_paused = False
         self.captionList = []
         self.cur_caption_seq = set()
-
-        mdx_path = os.path.join(BASE_DIR, "assets/mdx.db")
+        mdx_path = BASE_DIR / "assets" / "mdx.db"
+        print(f"mdxpath {mdx_path}")
 
         # check mdx or < 1mb
         if not os.path.exists(mdx_path) or os.path.getsize(mdx_path) < 1024 * 1024:
@@ -339,7 +340,9 @@ class Player(QtWidgets.QMainWindow):
                 #self.open_file()
                 return
 
+            print("start to play now->")
             self.mediaplayer.play()
+
             self.playbutton.setText("Pause")
             self.timer.start()
             self.is_paused = False
@@ -437,9 +440,9 @@ class Player(QtWidgets.QMainWindow):
             print(f"Resized window to match video dimensions: {new_width}x{new_height + controls_height}")
 
         # Get and set the first frame as cover image
-        first_image = get_video_frame_as_base64(filename[0])
-        self.set_cover_image(first_image)
-        
+        # first_image = get_video_frame_as_base64(filename[0])
+        # self.set_cover_image(first_image)
+        #
         # Continue with media loading...
         self.media = self.instance.media_new(filename[0])
 

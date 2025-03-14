@@ -10,6 +10,7 @@ class BaseModel(Model):
     class Meta:
         database = None  # Will be set later
 
+
 # Define Mdx model inheriting from BaseModel
 class Mdx(BaseModel):
     entry = CharField(primary_key=True)  # 把 `entry` 设为主键
@@ -21,6 +22,7 @@ class Mdx(BaseModel):
             (('entry',), False),  # False 表示索引不是唯一的
         )
 
+
 class WordTranslation:
     def __init__(self, meanings, audios):
         self.meanings = meanings
@@ -31,7 +33,6 @@ class WordTranslation:
 
     def __str__(self):
         return f"[WordTranslation] {self.meanings}, {self.audios}"
-
 
 
 class OfflineTranslator:
@@ -79,10 +80,6 @@ class OfflineTranslator:
                         meanings.append(mw_zh.text)
         return WordTranslation(meanings, [])
 
-
-
-
-
     def lookup(self, text, retry=0):
         """查找词条的释义"""
         try:
@@ -99,7 +96,7 @@ class OfflineTranslator:
             mdx = Mdx.get_or_none(Mdx.entry == text)
             print("sql done", mdx)
             if mdx and mdx.paraphrase:
-                #print(mdx.paraphrase
+                # print(mdx.paraphrase
                 print("get mdx entry", mdx.entry)
                 return OfflineTranslator.parse_mdx(mdx.paraphrase)
             else:
@@ -113,7 +110,6 @@ class OfflineTranslator:
         """确保对象销毁时关闭数据库连接"""
         if not self.db.is_closed():
             self.db.close()
-
 
 # def test_lookup():
 #     # print current path

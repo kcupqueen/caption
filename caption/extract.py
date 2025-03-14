@@ -118,6 +118,6 @@ def get_video_frame_as_base64(video_path, time="00:00:01"):
 
 
 # Example usage:
-video_path = "/home/ssx/code/youtube/test5.mkv"
-image_base64 = get_video_frame_as_base64(video_path)
-print(image_base64[:100] + "...")  # Print first 100 chars for preview
+# video_path = "/home/ssx/code/youtube/test5.mkv"
+# image_base64 = get_video_frame_as_base64(video_path)
+# print(image_base64[:100] + "...")  # Print first 100 chars for preview
