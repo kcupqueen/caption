@@ -1,3 +1,5 @@
+import os
+
 from peewee import SqliteDatabase, Model, IntegerField, CharField
 from bs4 import BeautifulSoup
 import spacy
@@ -31,11 +33,17 @@ class WordTranslation:
         return f"[WordTranslation] {self.meanings}, {self.audios}"
 
 
+
 class OfflineTranslator:
-    def __init__(self, mdx_db_path):
+    def __init__(self, mdx_db_path, model_path):
         self.mdx_db_path = mdx_db_path
         self.db = SqliteDatabase(mdx_db_path)
-        self.nlp = spacy.load("en_core_web_sm")
+        try:
+            self.nlp = spacy.load(model_path)
+            print("load nlp success")
+        except Exception as e:
+            print("load model error", e)
+            self.nlp = None
 
         # 绑定数据库到 Peewee 模型
         self.db.bind([Mdx])
@@ -46,6 +54,9 @@ class OfflineTranslator:
         # print all tables
         print(self.db.get_tables())
 
+    def nlp_ready(self):
+        print("nlp ready", self.nlp is not None)
+        return self.nlp is not None
 
     @staticmethod
     def parse_mdx(paraphrase):

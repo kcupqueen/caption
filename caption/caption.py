@@ -116,13 +116,32 @@ htmlTemplateWelcome = '''<body>
 </body>
 '''
 
+errorTemplate = '''<body>
+    <style>
+        h2 {{
+            font-family: "Arial", sans-serif; /* Modern, clean font */
+            font-size: 24px; /* Medium website-style font size */
+            color: #FF0000; /* Red text for errors */
+            text-align: center; /* Center the text */
+            font-weight: 600; /* Medium-bold text */
+            margin-top: 20px;
+        }}
+    </style>
 
+    <h2>{}</h2>
+</body>
+'''
 
 def get_template(t_type, txt):
     if t_type == 'caption':
         return htmlTemplateCaption.format(txt)
-    else:
+    elif t_type == 'welcome':
         return htmlTemplateWelcome.format(txt)
+    elif t_type == 'error':
+        return errorTemplate.format(txt)
+    else:
+        # throw error
+        return None
 
 # content_type enum
 class LookUpType:

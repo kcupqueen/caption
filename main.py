@@ -38,7 +38,13 @@ from widget.slider import VideoSlider, ClickableSlider
 
 from widget.thread import QtThread
 
-
+# TODO only for development
+BASE_DIR = os.path.abspath(".")
+MODEL_PATH = "en_core_web_sm"
+check_list = {
+    "en_core_web_sm": False,
+    "mdx": False,
+}
 class Player(QtWidgets.QMainWindow):
     """A simple Media Player using VLC and Qt
     """
@@ -62,14 +68,25 @@ class Player(QtWidgets.QMainWindow):
         self.mediaplayer = self.instance.media_player_new()
         self.mediaplayer.audio_set_volume(50)
 
-        self.create_ui()
+
         self.is_paused = False
-        self.resized = False
         self.captionList = []
         self.cur_caption_seq = set()
-        test_db_path = "./mdx.db"
-        self.translator = OfflineTranslator(test_db_path)
 
+        mdx_path = os.path.join(BASE_DIR, "assets/mdx.db")
+
+        # check mdx or < 1mb
+        if not os.path.exists(mdx_path) or os.path.getsize(mdx_path) < 1024 * 1024:
+            print("mdx.db not found, please download it from")
+            check_list["mdx"] = False
+        else:
+            check_list["mdx"] = True
+        # get size of mdx
+        self.translator = OfflineTranslator(mdx_path, MODEL_PATH)
+        if self.translator.nlp_ready():
+            check_list["en_core_web_sm"] = True
+
+        self.create_ui()
 
     def clear_cache(self):
         self.play_triggered_times = 0
@@ -132,6 +149,17 @@ class Player(QtWidgets.QMainWindow):
         self.caption.setReadOnly(True)
         welcomeHtml = get_template("welcome", "subtitles will be displayed here, you can select the text and look up the meaning while watching the video")
         self.caption.setHtml(welcomeHtml)
+        # check check_list
+        error_txt = ""
+        for key, value in check_list.items():
+            print(key, value)
+            if not value:
+                error_txt += f"{key} not found, "
+        if error_txt:
+            errorHtml = get_template("error", error_txt)
+            self.caption.setHtml(errorHtml)
+
+
         # register selectionChanged signal
         self.caption.mouseReleaseEvent = self.on_selection_changed
         # Create a separate layout for the caption

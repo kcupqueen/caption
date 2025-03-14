@@ -1,0 +1,8 @@
+beautifulsoup4==4.13.3
+ffmpeg_python==0.2.0
+peewee==3.17.9
+PyQt5==5.15.11
+PyQt5_sip==12.17.0
+python_vlc==3.0.21203
+spacy==3.8.4
+webvtt_py==0.5.1
