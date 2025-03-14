@@ -31,7 +31,7 @@ import sys, time
 from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
 from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType, convert_srt_to_vtt
-from caption.extract import get_subtitle_tracks, extract_all
+from caption.extract import get_subtitle_tracks, extract_all, get_video_dimensions, get_video_frame_as_base64
 from caption.translate import OfflineTranslator, WordTranslation
 from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
@@ -145,10 +145,10 @@ class Player(QtWidgets.QMainWindow):
         self.floatingWindow.captionReady.connect(self.display_translation)
 
         self.vboxlayout = QtWidgets.QVBoxLayout()
-        self.vboxlayout.addWidget(self.videoframe)
-        self.vboxlayout.addWidget(self.positionslider)
-        self.vboxlayout.addLayout(self.hbuttonbox)
-        self.vboxlayout.addLayout(self.caption_layout)
+        self.vboxlayout.addWidget(self.videoframe, 80)  # Give videoframe a stretch factor of 80
+        self.vboxlayout.addWidget(self.positionslider, 1)  # Small stretch factor
+        self.vboxlayout.addLayout(self.hbuttonbox, 1)  # Small stretch factor
+        self.vboxlayout.addLayout(self.caption_layout, 18)  # Give caption about 18% of remaining space
 
         self.widget.setLayout(self.vboxlayout)
 
@@ -317,13 +317,6 @@ class Player(QtWidgets.QMainWindow):
             self.is_paused = False
             width, height = self.mediaplayer.video_get_size(0)
             print(f"Video Size: {width}x{height}")
-            # resize the window to the video size
-            if not self.resized and width > 0 and height > 0:
-                # self.setMinimumSize(width, height)
-                self.resize(width, height)
-                self.resized = True
-                self.caption.resize(width, int(height/3))
-                pass
 
     def pause(self, action):
         if self.mediaplayer.is_playing():
@@ -340,21 +333,86 @@ class Player(QtWidgets.QMainWindow):
         self.mediaplayer.stop()
         self.playbutton.setText("Play")
 
+    def set_cover_image(self, base64_image):
+        """Set a cover image on the video frame before playback starts"""
+        if not base64_image:
+            return
+            
+        # Create a QPixmap from the base64 image data
+        pixmap = QtGui.QPixmap()
+        pixmap.loadFromData(QtCore.QByteArray.fromBase64(base64_image.encode()))
+        
+        # Scale the pixmap to fit the video frame while maintaining aspect ratio
+        scaled_pixmap = pixmap.scaled(
+            self.videoframe.size(),
+            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+            QtCore.Qt.TransformationMode.SmoothTransformation
+        )
+        
+        # Create a label to display the image
+        self.cover_label = QtWidgets.QLabel(self.videoframe)
+        self.cover_label.setPixmap(scaled_pixmap)
+        self.cover_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.cover_label.setStyleSheet("background-color: black;")
+        self.cover_label.resize(self.videoframe.size())
+        self.cover_label.show()
+        
+        # Connect to the playing event to hide the cover
+        event_manager = self.mediaplayer.event_manager()
+        event_manager.event_attach(vlc.EventType.MediaPlayerPlaying, 
+                                  lambda e: QtCore.QMetaObject.invokeMethod(self, 
+                                                                          "hide_cover", 
+                                                                          QtCore.Qt.ConnectionType.QueuedConnection))
+    
+    @QtCore.pyqtSlot()
+    def hide_cover(self):
+        """Hide and remove the cover image when playback starts"""
+        if hasattr(self, 'cover_label'):
+            self.cover_label.hide()
+            self.cover_label.deleteLater()
+            delattr(self, 'cover_label')
+
     def open_file(self):
-        """Open a media file in a MediaPlayer
-        """
+        """Open a media file in a MediaPlayer"""
         self.clear_cache()
         dialog_txt = "Choose Media File"
         filename = QtWidgets.QFileDialog.getOpenFileName(self, dialog_txt, os.path.expanduser('~'))
         if not filename:
             return
+        
+        # Get video information
         ffmpeg_tracks = get_subtitle_tracks(filename[0])
         print(ffmpeg_tracks)
         self.caption.setText("load video {} successfully, subtitle tracks: {}".format(filename, ffmpeg_tracks))
+        ffmpeg_w, ffmpeg_h = get_video_dimensions(filename[0])
+        
+        # Resize the video frame to match video dimensions
+        if ffmpeg_w > 0 and ffmpeg_h > 0:
+            # Set the initial size of the window based on video dimensions
+            # You can apply a scaling factor if needed
+            scaling_factor = 1.0  # Adjust this if you want the window smaller/larger than the video
+            
+            # Calculate new window size while preserving aspect ratio
+            new_width = int(ffmpeg_w * scaling_factor)
+            new_height = int(ffmpeg_h * scaling_factor)
+            
+            # Add extra height for controls and caption area
+            # Estimate the height needed for other components
+            controls_height = 150  # Approximate height for slider, buttons, and caption
+            
+            # Resize the main window
+            self.resize(new_width, new_height + controls_height)
+            
+            # Set minimum size for the video frame
+            self.videoframe.setMinimumSize(new_width, new_height)
+            
+            print(f"Resized window to match video dimensions: {new_width}x{new_height + controls_height}")
 
-
-
-        # getOpenFileName returns a tuple, so use only the actual file name
+        # Get and set the first frame as cover image
+        first_image = get_video_frame_as_base64(filename[0])
+        self.set_cover_image(first_image)
+        
+        # Continue with media loading...
         self.media = self.instance.media_new(filename[0])
 
         # Put the media in the media player
@@ -389,11 +447,6 @@ class Player(QtWidgets.QMainWindow):
         event_manager.event_attach(vlc.EventType.MediaPlayerPlaying, self.go_on_play)
         # Parse the metadata of the file
         self.media.parse()
-
-        # Set the title of the track as window title
-        #self.setWindowTitle(self.media.get_meta(0))
-        width, height = self.mediaplayer.video_get_size(0)
-        print(f"Video Size: {width}x{height}")
 
         # The media player has to be 'connected' to the QFrame (otherwise the
         # video would be displayed in it's own window). This is platform

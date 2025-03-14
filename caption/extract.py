@@ -1,6 +1,26 @@
 import os
 
 import ffmpeg
+import base64
+
+def get_video_dimensions(video_path):
+    try:
+        probe = ffmpeg.probe(video_path)
+        video_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
+
+        if video_stream:
+            width = video_stream['width']
+            height = video_stream['height']
+            return width, height
+        else:
+            raise ValueError("No video stream found")
+
+    except ffmpeg.Error as e:
+        print("FFmpeg error:", e.stderr.decode())
+        return None
+
+
+
 
 def get_subtitle_tracks(video_path):
     """ 获取视频文件的字幕轨道信息 """
@@ -61,3 +81,43 @@ def extract_all(video_path):
 
 #extract_all("/home/ssx/code/youtube/test5.mkv")
 #extract_subtitles("/home/ssx/code/youtube/test5.mkv", "/home/ssx/code/youtube/test5.srt", track_index=0)
+
+# Example usage:
+# video_path = "/home/ssx/code/youtube/test5.mkv"
+# width, height = get_video_dimensions(video_path)
+# print(f"Width: {width}, Height: {height}")
+
+
+
+
+
+def get_video_frame_as_base64(video_path, time="00:00:01"):
+    """
+    Extracts a frame from a video and returns it as a base64-encoded string.
+
+    :param video_path: Path to the video file.
+    :param time: Timestamp (HH:MM:SS) to capture the frame.
+    :return: Base64-encoded image string.
+    """
+    try:
+        # Run ffmpeg and capture the output in memory
+        out, _ = (
+            ffmpeg
+            .input(video_path, ss=time)  # Seek to the given timestamp
+            .output("pipe:", format="image2", vframes=1)  # Output image to stdout
+            .run(capture_stdout=True, capture_stderr=True)
+        )
+
+        # Convert the image to base64
+        base64_str = base64.b64encode(out).decode("utf-8")
+        return base64_str
+
+    except ffmpeg.Error as e:
+        print("FFmpeg error:", e.stderr.decode())
+        return None
+
+
+# Example usage:
+video_path = "/home/ssx/code/youtube/test5.mkv"
+image_base64 = get_video_frame_as_base64(video_path)
+print(image_base64[:100] + "...")  # Print first 100 chars for preview
