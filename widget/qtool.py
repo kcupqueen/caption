@@ -19,7 +19,6 @@ class FloatingTranslation(QWidget):
         self.label = QLabel("翻译内容", self)
         self.save_button = QPushButton("⭐ 收藏")
         self.save_button.clicked.connect(self.save_translation)
-        self.showing = False
 
         layout = QVBoxLayout()
         layout.addWidget(self.label)
@@ -37,7 +36,6 @@ class FloatingTranslation(QWidget):
             self.label.setText(f"loading")  # 模拟翻译
         self.move(pos)
         self.show()
-        self.showing = True
 
     def save_translation(self):
         """收藏翻译"""
@@ -46,7 +44,8 @@ class FloatingTranslation(QWidget):
     def eventFilter(self, obj, event):
         """监听鼠标点击事件，判断是否点击到了窗口外部"""
         if event.type() == QEvent.MouseButtonPress:
-            if not self.showing:
+            if self.isHidden():
+                print("[FloatingTranslation] ignore not showing...")
                 return super().eventFilter(obj, event)
 
             clicked_widget = QApplication.widgetAt(event.globalPos())
@@ -58,6 +57,7 @@ class FloatingTranslation(QWidget):
                 return super().eventFilter(obj, event)
             
             if not self.geometry().contains(event.globalPos()):  # 判断是否点击到窗口外部
+                print("[FloatingTranslation] clicked outside, closing...", self.isHidden())
                 self.hide()
                 self.windowClosed.emit({
                     'test': 'test'
