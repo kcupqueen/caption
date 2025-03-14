@@ -430,6 +430,7 @@ class Player(QtWidgets.QMainWindow):
         print('pos', pos)
         self.mediaplayer.set_position(pos / 1000.0)
         self.timer.start()
+        self.cur_caption_seq.clear()
 
     def update_ui(self):
         """Updates the user interface"""
