@@ -7,7 +7,7 @@
 - [ ] feature 翻译API
 - [x] feature 词典API
 - [ ] feature 翻译次数统计
-
+- [ ] bug 差will居然查不出来
 ## player
 - [x] feature mkv metadata
 - [x] feature 播放器布局调整

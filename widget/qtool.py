@@ -1,14 +1,17 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QTextEdit, QLabel, QPushButton, QVBoxLayout, QWidget
-from PyQt5.QtGui import QTextCursor
+from PyQt5.QtGui import QTextCursor, QIcon
 from PyQt5.QtCore import Qt, QPoint, QEvent, pyqtSignal
+
+from caption.translate import OnlineTranslator, SentenceTranslation
+
 
 class FloatingTranslation(QWidget):
     """悬浮翻译窗口（点击外部自动关闭）"""
     windowClosed = pyqtSignal(dict)  # Modified to accept a dictionary parameter
     captionReady = pyqtSignal(dict)  # Added a signal to emit a string
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, confirm=False, onlineTranslator=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setStyleSheet("background-color: white; border: 1px solid black; padding: 5px;")
@@ -19,23 +22,45 @@ class FloatingTranslation(QWidget):
         self.label = QLabel("翻译内容", self)
         self.save_button = QPushButton("⭐ 收藏")
         self.save_button.clicked.connect(self.save_translation)
+        self.confirm = confirm
+        self.onlineTranslator = onlineTranslator
+        if self.confirm:
+            self.confirm_button = QPushButton(QIcon("assets/ai_search.png"), "AI explain")
+            self.confirm_button.clicked.connect(self.confirm_translation)
 
         layout = QVBoxLayout()
         layout.addWidget(self.label)
+        if self.confirm:
+            layout.addWidget(self.confirm_button)
         layout.addWidget(self.save_button)
+
+
         self.setLayout(layout)
 
         # 监听全局鼠标点击事件
         QApplication.instance().installEventFilter(self)
 
-    def set_translation(self, text, pos, state):
+
+    def confirm_translation(self):
+        print("clicked confirm button")
+        if isinstance(self.onlineTranslator, OnlineTranslator):
+            ret = self.onlineTranslator.lookup(self.label.text())
+            if ret and isinstance(ret, SentenceTranslation):
+                render = ret.to_html()
+                # to be continued
+
+
+    def set_translation(self, text, pos, state, confirm=False):
         """设置翻译内容，并移动到指定位置"""
         if state == "loaded":
             self.label.setText(text)  # 模拟翻译
         else:
-            self.label.setText(f"loading")  # 模拟翻译
+            self.label.setText(text)  # 模拟翻译
         self.move(pos)
         self.show()
+        if confirm:
+            # hide collect button
+            self.save_button.hide()
 
     def save_translation(self):
         """收藏翻译"""

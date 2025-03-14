@@ -32,7 +32,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
 from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType, convert_srt_to_vtt
 from caption.extract import get_subtitle_tracks, extract_all, get_video_dimensions, get_video_frame_as_base64
-from caption.translate import OfflineTranslator, WordTranslation
+from caption.translate import OfflineTranslator, WordTranslation, OnlineTranslator
 from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
 
@@ -85,7 +85,7 @@ class Player(QtWidgets.QMainWindow):
         self.translator = OfflineTranslator(mdx_path, MODEL_PATH)
         if self.translator.nlp_ready():
             check_list["en_core_web_sm"] = True
-
+        self.translator_online = OnlineTranslator("http://localhost:3000/api/translate")
         self.create_ui()
 
     def clear_cache(self):
@@ -168,9 +168,14 @@ class Player(QtWidgets.QMainWindow):
 
         # caption word lookup
         self.floatingWindow = FloatingTranslation(self)
+        # caption sentence lookup window
+        self.floatingWindowLong = FloatingTranslation(self, confirm=True, onlineTranslator=self.translator_online)
 
         self.floatingWindow.windowClosed.connect(self.go_on_play)  # Connect signal to slot
         self.floatingWindow.captionReady.connect(self.display_translation)
+        self.floatingWindowLong.windowClosed.connect(self.go_on_play)  # Connect signal to slot
+        self.floatingWindowLong.captionReady.connect(self.display_translation)
+
 
         self.vboxlayout = QtWidgets.QVBoxLayout()
         self.vboxlayout.addWidget(self.videoframe, 80)  # Give videoframe a stretch factor of 80
@@ -321,8 +326,16 @@ class Player(QtWidgets.QMainWindow):
         pos = event['pos']
         state = event['state']
         text = event['text']
+        _type = event.get('type', LookUpType.WORD)
+        confirm = False
+        component = self.floatingWindow
+        if _type == LookUpType.SENTENCE:
+            component = self.floatingWindowLong
+            if state == "loading": # confirm to use ai , hide collect button
+                confirm = True
+
         if text:
-            self.floatingWindow.set_translation(text, pos, state)
+            component.set_translation(text, pos, state, confirm)
 
 
     def play_pause(self):
@@ -566,14 +579,22 @@ class Player(QtWidgets.QMainWindow):
         cursor = self.caption.textCursor()
         if cursor.hasSelection():
             selected_text = cursor.selectedText()  # ✅ Get the selected text
+            component = self.floatingWindow
             if selected_text:
+                lookup_type = LookUpType.WORD
                 self.pause("lookup")
+                if len(selected_text.split()) > 1:
+                    lookup_type = LookUpType.SENTENCE
+                    component = self.floatingWindowLong
+
                 cursor_rect = self.caption.cursorRect(cursor)
                 pos = self.caption.mapToGlobal(cursor_rect.bottomRight())
-                self.floatingWindow.captionReady.emit({
-                    'text': "loading...",
+
+                component.captionReady.emit({
+                    'text': selected_text,
                     'pos': pos,
-                    "state": "loading"
+                    "state": "loading",
+                    "type": lookup_type
                 })
 
                 def lookup_caption_task(text):
@@ -587,24 +608,30 @@ class Player(QtWidgets.QMainWindow):
                         result = "\n".join(result.meanings)
                     else:
                         result = "No translation found"
-                    self.floatingWindow.captionReady.emit({
+                    component.captionReady.emit({
                         'text': result,
                         'pos': pos,
                         "state": "loaded"
                     })
 
-                # **存储多个线程，避免被覆盖**
-                if not hasattr(self, "translation_threads"):
-                    self.translation_threads = []  # 初始化线程列表
+                # lookup for a word, if it is one single word
+                if lookup_type == LookUpType.WORD:
+                    print("lookup one word", selected_text)
+                    # **存储多个线程，避免被覆盖**
+                    if not hasattr(self, "translation_threads"):
+                        self.translation_threads = []  # 初始化线程列表
 
-                thread = QtThread(lookup_caption_task, selected_text)
-                thread.finished.connect(on_result)
-                thread.start()
+                    thread = QtThread(lookup_caption_task, selected_text)
+                    thread.finished.connect(on_result)
+                    thread.start()
 
-                self.translation_threads.append(thread)
+                    self.translation_threads.append(thread)
 
-                # 清理已完成的线程
-                self.translation_threads = [t for t in self.translation_threads if t.isRunning()]
+                    # 清理已完成的线程
+                    self.translation_threads = [t for t in self.translation_threads if t.isRunning()]
+                else:
+                    print("multi words", selected_text)
+
 
 
 
