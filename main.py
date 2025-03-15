@@ -46,6 +46,7 @@ current_dir = Path.cwd()
 dict_path = Path(current_dir) / "assets" / "swordword.db"
 lemma_path = Path(current_dir) / "assets" / "lemma.en.txt"
 
+
 class Player(QtWidgets.QMainWindow):
     """A simple Media Player using VLC and Qt
     """

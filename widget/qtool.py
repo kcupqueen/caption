@@ -157,7 +157,7 @@ class FloatingTranslation(QMainWindow):
         self.resize(400, 300)
         
         # Monitor global mouse events
-        QApplication.instance().installEventFilter(self)
+        #QApplication.instance().installEventFilter(self)
         
     def hide_window(self):
         """Hide the window and emit the windowClosed signal"""
@@ -194,12 +194,12 @@ class FloatingTranslation(QMainWindow):
     def save_translation(self):
         self.label.page().toHtml(lambda html: print("已收藏:", html))
 
-    def eventFilter(self, obj, event):
-        if event.type() == QEvent.MouseButtonPress:
-            if not self.geometry().contains(event.globalPos()):
-                self.hide_window()  # Use the new hide_window method
-                return True
-        return super().eventFilter(obj, event)
+    # def eventFilter(self, obj, event):
+    #     if event.type() == QEvent.MouseButtonPress:
+    #         if not self.geometry().contains(event.globalPos()):
+    #             self.hide_window()  # Use the new hide_window method
+    #             return True
+    #     return super().eventFilter(obj, event)
 
 
 class TranslatorApp(QWidget):
