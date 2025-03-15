@@ -28,12 +28,14 @@ import platform
 import os
 import sys, time
 from pathlib import Path
+from PyQt5.QtGui import QMouseEvent
 
 from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
 from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType, convert_srt_to_vtt
 from caption.extract import get_subtitle_tracks, extract_all, get_video_dimensions, get_video_frame_as_base64
 from caption.stardict import OfflineTranslator
+from widget.player_event import mouse_press_event
 from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
 
@@ -190,6 +192,9 @@ class Player(QtWidgets.QMainWindow):
         self.timer = QtCore.QTimer(self)
         self.timer.setInterval(100)
         self.timer.timeout.connect(self.update_ui)
+
+    def mousePressEvent(self, event: QMouseEvent):
+        mouse_press_event(self, event)
 
     def track_parsed(self, event):
         # Use invokeMethod to update UI from the main thread
