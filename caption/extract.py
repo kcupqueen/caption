@@ -25,14 +25,19 @@ def get_subtitle_tracks(video_path):
     """ 获取视频文件的字幕轨道信息 """
     metadata = ffmpeg.probe(video_path)
     subtitle_tracks = []
-
+    # 2025-03-15 support chinese english subtitle
+    lang_dict = {
+        "eng": "English",
+        "chi": "Chinese",
+        "zho": "Chinese",
+    }
     for stream in metadata['streams']:
-        print(stream)
         if stream['codec_type'] == 'subtitle':
             track_index = stream['index']
             codec_name = stream.get('codec_name', 'unknown')
             language = stream['tags'].get('language', 'unknown') if 'tags' in stream else 'unknown'
-            subtitle_tracks.append((track_index, codec_name, language))
+            if language in lang_dict:
+                subtitle_tracks.append((track_index, codec_name, language))
 
     return subtitle_tracks
 

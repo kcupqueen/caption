@@ -1,4 +1,9 @@
+import time
+
 from PyQt5.QtCore import QThread, pyqtSignal
+
+from caption.extract import get_video_frame_as_base64, extract_all
+
 
 class QtThread(QThread):
     finished = pyqtSignal(object)  # 任务完成后发出信号，支持任意类型的结果
@@ -22,6 +27,7 @@ class QtThread(QThread):
         except Exception as e:
             self.finished.emit(f"Error: {e}")  # 发生异常时发送错误信息
 
+
 """
 def lookup_caption_task(text):
     return lookup_caption(text, LookUpType.WORD if ' ' not in text else LookUpType.SENTENCE)
@@ -35,3 +41,4 @@ thread.finished.connect(on_result)  # 连接信号
 thread.start()
 
 """
+

@@ -28,6 +28,8 @@ import platform
 import os
 import sys, time
 from pathlib import Path
+
+from PyQt5.QtCore import QTimer
 from PyQt5.QtGui import QMouseEvent
 
 from PyQt5 import QtWidgets, QtGui, QtCore
@@ -35,6 +37,7 @@ import vlc
 from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType, convert_srt_to_vtt
 from caption.extract import get_subtitle_tracks, extract_all, get_video_dimensions, get_video_frame_as_base64
 from caption.stardict import OfflineTranslator
+from widget.player_controller import resize_player
 from widget.player_event import mouse_press_event
 from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
@@ -218,7 +221,7 @@ class Player(QtWidgets.QMainWindow):
         audio_tracks = self.mediaplayer.audio_get_track_description()
         current_audio = self.mediaplayer.audio_get_track()
 
-        print("Audio Tracks:")
+        # print("Audio Tracks:")
         for track_id, track_name in audio_tracks:
             # Add checkmark emoji if this is the current track
             prefix = "✓ " if track_id == current_audio else "    "
@@ -390,42 +393,16 @@ class Player(QtWidgets.QMainWindow):
 
         # Get video information
         ffmpeg_tracks = get_subtitle_tracks(filename[0])
-        print(ffmpeg_tracks)
+        # print(ffmpeg_tracks)
         self.caption.setText("load video {} successfully, subtitle tracks: {}".format(filename, ffmpeg_tracks))
         ffmpeg_w, ffmpeg_h = get_video_dimensions(filename[0])
 
-        # Resize the video frame to match video dimensions
-        if ffmpeg_w > 0 and ffmpeg_h > 0:
-            # Set the initial size of the window based on video dimensions
-            # You can apply a scaling factor if needed
-            scaling_factor = 1.0  # Adjust this if you want the window smaller/larger than the video
-
-            # Calculate new window size while preserving aspect ratio
-            new_width = int(ffmpeg_w * scaling_factor)
-            new_height = int(ffmpeg_h * scaling_factor)
-
-            # Add extra height for controls and caption area
-            # Estimate the height needed for other components
-            controls_height = 150  # Approximate height for slider, buttons, and caption
-
-            # Resize the main window
-            self.resize(new_width, new_height + controls_height)
-
-            # Set minimum size for the video frame
-            self.videoframe.setMinimumSize(new_width, new_height)
-
-            print(f"Resized window to match video dimensions: {new_width}x{new_height + controls_height}")
-
-        # Get and set the first frame as cover image
-        # first_image = get_video_frame_as_base64(filename[0])
-        # self.set_cover_image(first_image)
-        #
         # Continue with media loading...
         self.media = self.instance.media_new(filename[0])
 
         # Put the media in the media player
         self.mediaplayer.set_media(self.media)
-        self.mediaplayer.set_mrl(filename[0], ":avcodec-hw=none", ":no-hw-dec", ":avcodec-threads=1")
+        self.mediaplayer.set_mrl(filename[0], ":avcodec-hw=none", ":no-hw-dec")
 
         event_manager = self.mediaplayer.event_manager()
 
@@ -464,25 +441,34 @@ class Player(QtWidgets.QMainWindow):
         elif platform.system() == "Darwin":  # for MacOS
             self.mediaplayer.set_nsobject(int(self.videoframe.winId()))
 
-        # disable playbutton
-        #self.playbutton.setEnabled(False)
+        def loading_animation():
+            first_image = get_video_frame_as_base64(filename[0])
+            self.set_cover_image(first_image)
+            base_text = "Loading "  # 初始文本
+            progress_char = "█"  # 进度条字符
+            max_progress = 10  # 最大长度
+            current_progress = 0  # 当前进度
 
-        # # extract all subtitles
-        # sub_files, langs = extract_all(filename[0])
-        # for i, sub_file in enumerate(sub_files):
-        #     vtt = convert_srt_to_vtt(sub_file, True)
-        #     sub_files[i] = vtt
-        #
-        # for i, lang in enumerate(langs):
-        #     self.subtitle_tracks.append((i, lang, lang))
-        #
-        # self.sub_file_num = len(sub_files)
-        # print("x(self.sub_file_num)", self.sub_file_num)
-        # self.playbutton.setEnabled(True)
-        # if self.sub_file_num > 0:
-        #     # choose the first subtitle track as default
-        #     self.backend_load_caption(sub_files[0])
-        #     print("auto load subtitle tracks", self.subtitle_tracks)
+            # 创建定时器
+            while True:
+                time.sleep(0.5)
+                current_progress += 1
+                if current_progress > max_progress:
+                    current_progress = 0
+                progress_text = progress_char * current_progress
+                text = base_text + progress_text
+                self.caption.setText(text)
+
+        def parse_caption_files():
+            sub_files, langs = extract_all(filename[0])
+            self.subtitle_tracks = list(zip(range(len(sub_files)), sub_files, langs))
+            self.playbutton.setEnabled(True)
+            if self.sub_file_num > 0:
+                # choose the first subtitle track as default
+                self.backend_load_caption(sub_files[0])
+                print("auto load subtitle tracks", self.subtitle_tracks)
+
+        resize_player(self, ffmpeg_w, ffmpeg_h)
 
     def set_volume(self, volume):
         """Set the volume
