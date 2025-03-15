@@ -33,7 +33,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
 from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType, convert_srt_to_vtt
 from caption.extract import get_subtitle_tracks, extract_all, get_video_dimensions, get_video_frame_as_base64
-from caption.translate import OfflineTranslator, WordTranslation
+from caption.stardict import OfflineTranslator
 from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
 
@@ -41,11 +41,11 @@ from widget.thread import QtThread
 
 # TODO only for development
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_PATH = "en_core_web_sm"
-check_list = {
-    "en_core_web_sm": False,
-    "mdx": False,
-}
+current_dir = Path.cwd()
+
+dict_path = Path(current_dir) / "assets" / "swordword.db"
+lemma_path = Path(current_dir) / "assets" / "lemma.en.txt"
+
 class Player(QtWidgets.QMainWindow):
     """A simple Media Player using VLC and Qt
     """
@@ -69,23 +69,11 @@ class Player(QtWidgets.QMainWindow):
         self.mediaplayer = self.instance.media_player_new()
         self.mediaplayer.audio_set_volume(50)
 
-
         self.is_paused = False
         self.captionList = []
         self.cur_caption_seq = set()
-        mdx_path = BASE_DIR / "assets" / "mdx.db"
-        print(f"mdxpath {mdx_path}")
-
-        # check mdx or < 1mb
-        if not os.path.exists(mdx_path) or os.path.getsize(mdx_path) < 1024 * 1024:
-            print("mdx.db not found, please download it from")
-            check_list["mdx"] = False
-        else:
-            check_list["mdx"] = True
         # get size of mdx
-        self.translator = OfflineTranslator(mdx_path, MODEL_PATH)
-        if self.translator.nlp_ready():
-            check_list["en_core_web_sm"] = True
+        self.translator = OfflineTranslator(dict_path, lemma_path)
 
         self.create_ui()
 
@@ -102,7 +90,6 @@ class Player(QtWidgets.QMainWindow):
         self.cur_caption_seq = set()
         self.update_tracks_menu()
 
-
     def create_ui(self):
         """Set up the user interface, signals & slots
         """
@@ -110,7 +97,7 @@ class Player(QtWidgets.QMainWindow):
         self.setCentralWidget(self.widget)
 
         # In this widget, the video will be drawn
-        if platform.system() == "Darwin": # for MacOS
+        if platform.system() == "Darwin":  # for MacOS
             self.videoframe = QtWidgets.QMacCocoaViewContainer(0)
         else:
             self.videoframe = QtWidgets.QFrame()
@@ -144,22 +131,12 @@ class Player(QtWidgets.QMainWindow):
         self.hbuttonbox.addWidget(self.volumeslider)
         self.volumeslider.valueChanged.connect(self.set_volume)
 
-
         # caption area
         self.caption = QtWidgets.QTextEdit("Caption")
         self.caption.setReadOnly(True)
-        welcomeHtml = get_template("welcome", "subtitles will be displayed here, you can select the text and look up the meaning while watching the video")
+        welcomeHtml = get_template("welcome",
+                                   "subtitles will be displayed here, you can select the text and look up the meaning while watching the video")
         self.caption.setHtml(welcomeHtml)
-        # check check_list
-        error_txt = ""
-        for key, value in check_list.items():
-            print(key, value)
-            if not value:
-                error_txt += f"{key} not found, "
-        if error_txt:
-            errorHtml = get_template("error", error_txt)
-            self.caption.setHtml(errorHtml)
-
 
         # register selectionChanged signal
         self.caption.mouseReleaseEvent = self.on_selection_changed
@@ -213,29 +190,28 @@ class Player(QtWidgets.QMainWindow):
         self.timer.setInterval(100)
         self.timer.timeout.connect(self.update_ui)
 
-    
     def track_parsed(self, event):
         # Use invokeMethod to update UI from the main thread
-        QtCore.QMetaObject.invokeMethod(self, "update_tracks_menu", 
-                                      QtCore.Qt.ConnectionType.QueuedConnection)
+        QtCore.QMetaObject.invokeMethod(self, "update_tracks_menu",
+                                        QtCore.Qt.ConnectionType.QueuedConnection)
 
     @QtCore.pyqtSlot()
     def update_tracks_menu(self):
         """Update the tracks menu from the main thread"""
         # Clear existing menu items
         self.caption_menu.clear()
-        
+
         # Add caption loading action back
         caption_action = QtWidgets.QAction("Load Caption", self)
         caption_action.triggered.connect(self.load_caption)
         self.caption_menu.addAction(caption_action)
         self.caption_menu.addSeparator()
-        
+
         # Add audio tracks submenu
         audio_menu = self.caption_menu.addMenu("Audio Tracks")
         audio_tracks = self.mediaplayer.audio_get_track_description()
         current_audio = self.mediaplayer.audio_get_track()
-        
+
         print("Audio Tracks:")
         for track_id, track_name in audio_tracks:
             # Add checkmark emoji if this is the current track
@@ -266,9 +242,8 @@ class Player(QtWidgets.QMainWindow):
             action.setData(track_id)
             action.triggered.connect(lambda checked, tid=track_id: self.set_subtitle_track(tid))
             subtitle_menu.addAction(action)
-        
+
         print("embedded audio tracks", len(self.audio_tracks), "subtitle tracks", len(self.subtitle_tracks))
-    
 
     def set_audio_track(self, track_id):
         """Set the audio track"""
@@ -277,7 +252,6 @@ class Player(QtWidgets.QMainWindow):
         current_track = self.mediaplayer.audio_get_track()
         print("current track is", current_track)
         self.update_tracks_menu()
-
 
     def set_subtitle_track(self, track_id):
         """Set the subtitle track"""
@@ -290,22 +264,21 @@ class Player(QtWidgets.QMainWindow):
         self.extract_embedded_subtitle()
 
     def extract_embedded_subtitle(self):
-         # Try to get subtitle stats/content
+        # Try to get subtitle stats/content
         try:
             spu_stats = self.mediaplayer.spu_stats()
             if spu_stats:
                 print("SPU Stats:", spu_stats)
-                
+
             # Get all subtitle descriptions
             spu_desc = self.mediaplayer.video_get_spu_description()
             if spu_desc:
                 print("SPU Descriptions:")
                 for id, desc in spu_desc:
                     print(f"ID: {id}, Description: {desc.decode()}")
-                    
+
         except Exception as e:
             print("Error getting SPU content:", str(e))
-
 
     def go_on_play(self, event=None):
         print('go_on_play', event)
@@ -325,7 +298,6 @@ class Player(QtWidgets.QMainWindow):
         if text:
             self.floatingWindow.set_translation(text, pos, state)
 
-
     def play_pause(self):
         """Toggle play/pause status
         """
@@ -337,7 +309,7 @@ class Player(QtWidgets.QMainWindow):
             self.timer.stop()
         else:
             if self.mediaplayer.play() == -1:
-                #self.open_file()
+                # self.open_file()
                 return
 
             print("start to play now->")
@@ -357,7 +329,6 @@ class Player(QtWidgets.QMainWindow):
             self.timer.stop()
             print('pause action: {}'.format(action))
 
-
     def stop(self):
         """Stop player
         """
@@ -368,18 +339,18 @@ class Player(QtWidgets.QMainWindow):
         """Set a cover image on the video frame before playback starts"""
         if not base64_image:
             return
-            
+
         # Create a QPixmap from the base64 image data
         pixmap = QtGui.QPixmap()
         pixmap.loadFromData(QtCore.QByteArray.fromBase64(base64_image.encode()))
-        
+
         # Scale the pixmap to fit the video frame while maintaining aspect ratio
         scaled_pixmap = pixmap.scaled(
             self.videoframe.size(),
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation
         )
-        
+
         # Create a label to display the image
         self.cover_label = QtWidgets.QLabel(self.videoframe)
         self.cover_label.setPixmap(scaled_pixmap)
@@ -387,14 +358,14 @@ class Player(QtWidgets.QMainWindow):
         self.cover_label.setStyleSheet("background-color: black;")
         self.cover_label.resize(self.videoframe.size())
         self.cover_label.show()
-        
+
         # Connect to the playing event to hide the cover
         event_manager = self.mediaplayer.event_manager()
-        event_manager.event_attach(vlc.EventType.MediaPlayerPlaying, 
-                                  lambda e: QtCore.QMetaObject.invokeMethod(self, 
-                                                                          "hide_cover", 
-                                                                          QtCore.Qt.ConnectionType.QueuedConnection))
-    
+        event_manager.event_attach(vlc.EventType.MediaPlayerPlaying,
+                                   lambda e: QtCore.QMetaObject.invokeMethod(self,
+                                                                             "hide_cover",
+                                                                             QtCore.Qt.ConnectionType.QueuedConnection))
+
     @QtCore.pyqtSlot()
     def hide_cover(self):
         """Hide and remove the cover image when playback starts"""
@@ -408,35 +379,35 @@ class Player(QtWidgets.QMainWindow):
         self.clear_cache()
         dialog_txt = "Choose Media File"
         filename = QtWidgets.QFileDialog.getOpenFileName(self, dialog_txt, os.path.expanduser('~'))
-        if not filename:
+        if not filename or not filename[0]:
             return
-        
+
         # Get video information
         ffmpeg_tracks = get_subtitle_tracks(filename[0])
         print(ffmpeg_tracks)
         self.caption.setText("load video {} successfully, subtitle tracks: {}".format(filename, ffmpeg_tracks))
         ffmpeg_w, ffmpeg_h = get_video_dimensions(filename[0])
-        
+
         # Resize the video frame to match video dimensions
         if ffmpeg_w > 0 and ffmpeg_h > 0:
             # Set the initial size of the window based on video dimensions
             # You can apply a scaling factor if needed
             scaling_factor = 1.0  # Adjust this if you want the window smaller/larger than the video
-            
+
             # Calculate new window size while preserving aspect ratio
             new_width = int(ffmpeg_w * scaling_factor)
             new_height = int(ffmpeg_h * scaling_factor)
-            
+
             # Add extra height for controls and caption area
             # Estimate the height needed for other components
             controls_height = 150  # Approximate height for slider, buttons, and caption
-            
+
             # Resize the main window
             self.resize(new_width, new_height + controls_height)
-            
+
             # Set minimum size for the video frame
             self.videoframe.setMinimumSize(new_width, new_height)
-            
+
             print(f"Resized window to match video dimensions: {new_width}x{new_height + controls_height}")
 
         # Get and set the first frame as cover image
@@ -470,9 +441,6 @@ class Player(QtWidgets.QMainWindow):
                     QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
                                                     QtCore.Q_ARG(str, html))
 
-
-
-
         event_manager.event_attach(vlc.EventType.MediaPlayerTimeChanged, time_changed_callback)
         # attack play event
         event_manager.event_attach(vlc.EventType.MediaPlayerPlaying, self.go_on_play)
@@ -483,11 +451,11 @@ class Player(QtWidgets.QMainWindow):
         # video would be displayed in it's own window). This is platform
         # specific, so we must give the ID of the QFrame (or similar object) to
         # vlc. Different platforms have different functions for this
-        if platform.system() == "Linux": # for Linux using the X Server
+        if platform.system() == "Linux":  # for Linux using the X Server
             self.mediaplayer.set_xwindow(int(self.videoframe.winId()))
-        elif platform.system() == "Windows": # for Windows
+        elif platform.system() == "Windows":  # for Windows
             self.mediaplayer.set_hwnd(int(self.videoframe.winId()))
-        elif platform.system() == "Darwin": # for MacOS
+        elif platform.system() == "Darwin":  # for MacOS
             self.mediaplayer.set_nsobject(int(self.videoframe.winId()))
 
         # disable playbutton
@@ -508,7 +476,6 @@ class Player(QtWidgets.QMainWindow):
             # choose the first subtitle track as default
             self.backend_load_caption(sub_files[0])
             print("auto load subtitle tracks", self.subtitle_tracks)
-
 
     def set_volume(self, volume):
         """Set the volume
@@ -538,7 +505,7 @@ class Player(QtWidgets.QMainWindow):
         # Note that the setValue function only takes values of type int,
         # so we must first convert the corresponding media position.
         media_pos = int(self.mediaplayer.get_position() * 1000)
-        #print('set position', media_pos)
+        # print('set position', media_pos)
         self.positionslider.setValue(media_pos)
 
         # No need to call this function if nothing is played
@@ -580,16 +547,10 @@ class Player(QtWidgets.QMainWindow):
                 })
 
                 def lookup_caption_task(text):
-                    return self.translator.lookup(text)
+                    return self.translator.query(text)
 
                 def on_result(result):
                     # emit again
-                    print("result", result)
-                    if isinstance(result, WordTranslation) and len(result.meanings) > 0:
-                        # join all meanings
-                        result = "\n".join(result.meanings)
-                    else:
-                        result = "No translation found"
                     self.floatingWindow.captionReady.emit({
                         'text': result,
                         'pos': pos,
@@ -610,16 +571,15 @@ class Player(QtWidgets.QMainWindow):
                 self.translation_threads = [t for t in self.translation_threads if t.isRunning()]
 
 
-
-
 def main():
     """Entry point for our simple vlc player
     """
     app = QtWidgets.QApplication(sys.argv)
     player = Player()
     player.show()
-    #player.resize(640, 480)
+    # player.resize(640, 480)
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     main()

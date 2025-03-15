@@ -1,71 +1,210 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QTextEdit, QLabel, QPushButton, QVBoxLayout, QWidget
-from PyQt5.QtGui import QTextCursor
-from PyQt5.QtCore import Qt, QPoint, QEvent, pyqtSignal
+from PyQt5.QtWidgets import QApplication, QTextEdit, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QSlider, QLabel, QSizeGrip, QMainWindow, QFrame
+from PyQt5.QtGui import QTextCursor, QPalette, QColor, QIcon
+from PyQt5.QtCore import Qt, QPoint, QEvent, pyqtSignal, QSize
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 
-class FloatingTranslation(QWidget):
-    """悬浮翻译窗口（点击外部自动关闭）"""
-    windowClosed = pyqtSignal(dict)  # Modified to accept a dictionary parameter
-    captionReady = pyqtSignal(dict)  # Added a signal to emit a string
-    
+
+class TitleBar(QFrame):
+    """自定义标题栏"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(32)
+        self.window = parent
+        
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Title label
+        self.title_label = QLabel("翻译")
+        self.title_label.setStyleSheet("color: #333; font-size: 13px;")
+        layout.addWidget(self.title_label)
+        layout.addStretch()
+        
+        # Window controls
+        btn_size = 46
+        btn_style = """
+            QPushButton {
+                border: none;
+                padding: 0;
+                background: transparent;
+            }
+            QPushButton:hover {
+                background-color: rgba(0, 0, 0, 0.1);
+            }
+            #close_button:hover {
+                background-color: #e81123;
+                color: white;
+            }
+        """
+        
+        self.minimize_btn = QPushButton("─")
+        self.minimize_btn.setFixedSize(btn_size, self.height())
+        self.minimize_btn.clicked.connect(self.window.showMinimized)
+        
+        self.maximize_btn = QPushButton("□")
+        self.maximize_btn.setFixedSize(btn_size, self.height())
+        self.maximize_btn.clicked.connect(self.toggle_maximize)
+        
+        self.close_btn = QPushButton("✕")
+        self.close_btn.setObjectName("close_button")
+        self.close_btn.setFixedSize(btn_size, self.height())
+        self.close_btn.clicked.connect(self.window.hide_window)  # Use the new hide_window method
+        
+        for btn in (self.minimize_btn, self.maximize_btn, self.close_btn):
+            btn.setStyleSheet(btn_style)
+            layout.addWidget(btn)
+            
+        self.setStyleSheet("""
+            TitleBar {
+                background: #f0f0f0;
+                border-top-left-radius: 5px;
+                border-top-right-radius: 5px;
+            }
+        """)
+        
+    def toggle_maximize(self):
+        if self.window.isMaximized():
+            self.window.showNormal()
+            self.maximize_btn.setText("□")
+        else:
+            self.window.showMaximized()
+            self.maximize_btn.setText("❐")
+            
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.window.dragging = True
+            self.window.offset = event.pos()
+            
+    def mouseMoveEvent(self, event):
+        if self.window.dragging and self.window.offset:
+            self.window.move(self.window.mapToParent(event.pos() - self.window.offset))
+            
+    def mouseReleaseEvent(self, event):
+        self.window.dragging = False
+
+
+class FloatingTranslation(QMainWindow):
+    """悬浮翻译窗口"""
+    windowClosed = pyqtSignal(dict)
+    captionReady = pyqtSignal(dict)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.setStyleSheet("background-color: white; border: 1px solid black; padding: 5px;")
-
-        self.setAttribute(Qt.WA_DeleteOnClose)  # 关闭后释放内存 ✅
-
-        # 翻译文本
-        self.label = QLabel("翻译内容", self)
+        
+        # Main widget and layout
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        layout = QVBoxLayout(self.central_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Add custom title bar
+        self.title_bar = TitleBar(self)
+        layout.addWidget(self.title_bar)
+        
+        # Content widget with border
+        self.content_widget = QWidget()
+        content_layout = QVBoxLayout(self.content_widget)
+        content_layout.setContentsMargins(10, 10, 10, 10)
+        
+        # Translation content
+        self.label = QWebEngineView()
+        self.label.setMinimumSize(300, 200)
+        self.label.settings().setAttribute(QWebEngineSettings.ShowScrollBars, True)
+        self.zoom_factor = 1.0
+        
+        # Bottom controls
+        bottom_layout = QHBoxLayout()
         self.save_button = QPushButton("⭐ 收藏")
         self.save_button.clicked.connect(self.save_translation)
-
-        layout = QVBoxLayout()
-        layout.addWidget(self.label)
-        layout.addWidget(self.save_button)
-        self.setLayout(layout)
-
-        # 监听全局鼠标点击事件
+        bottom_layout.addWidget(self.save_button)
+        bottom_layout.addStretch()
+        
+        # Add widgets to content layout
+        content_layout.addWidget(self.label)
+        content_layout.addLayout(bottom_layout)
+        
+        # Add content widget to main layout
+        layout.addWidget(self.content_widget)
+        
+        # Styling
+        self.setStyleSheet("""
+            QMainWindow {
+                background: white;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+            }
+            QPushButton {
+                padding: 5px;
+                margin: 2px;
+                background-color: #f0f0f0;
+                border: 1px solid #ccc;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #e0e0e0;
+            }
+        """)
+        
+        # Window state
+        self.dragging = False
+        self.offset = None
+        
+        # Initial size
+        self.resize(400, 300)
+        
+        # Monitor global mouse events
         QApplication.instance().installEventFilter(self)
+        
+    def hide_window(self):
+        """Hide the window and emit the windowClosed signal"""
+        self.hide()
+        self.windowClosed.emit({})
+        
+    def wheelEvent(self, event):
+        if event.modifiers() == Qt.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self.adjust_zoom(0.1)
+            else:
+                self.adjust_zoom(-0.1)
+            event.accept()
+        else:
+            super().wheelEvent(event)
+            
+    def adjust_zoom(self, delta):
+        new_zoom = max(0.5, min(2.0, self.zoom_factor + delta))
+        if new_zoom != self.zoom_factor:
+            self.zoom_factor = new_zoom
+            self.label.setZoomFactor(self.zoom_factor)
 
     def set_translation(self, text, pos, state):
-        """设置翻译内容，并移动到指定位置"""
         if state == "loaded":
-            self.label.setText(text)  # 模拟翻译
+            self.label.setHtml(text)
         else:
-            self.label.setText(f"loading")  # 模拟翻译
+            print("not loaded")
+            self.label.setHtml(text)
         self.move(pos)
         self.show()
+        self.activateWindow()
 
     def save_translation(self):
-        """收藏翻译"""
-        print("已收藏:", self.label.text())
+        self.label.page().toHtml(lambda html: print("已收藏:", html))
 
     def eventFilter(self, obj, event):
-        """监听鼠标点击事件，判断是否点击到了窗口外部"""
         if event.type() == QEvent.MouseButtonPress:
-            if self.isHidden():
-                print("[FloatingTranslation] ignore not showing...")
-                return super().eventFilter(obj, event)
-
-            clicked_widget = QApplication.widgetAt(event.globalPos())
-            
-            # 直接比较是否是 playbutton
-            if clicked_widget == self.parent().playbutton:  # 最具体的方式
-                self.hide()
-                print('playbutton clicked')
-                return super().eventFilter(obj, event)
-            
-            if not self.geometry().contains(event.globalPos()):  # 判断是否点击到窗口外部
-                print("[FloatingTranslation] clicked outside, closing...", self.isHidden())
-                self.hide()
-                self.windowClosed.emit({
-                    'test': 'test'
-                })  # emit a dictionary signal
+            if not self.geometry().contains(event.globalPos()):
+                self.hide_window()  # Use the new hide_window method
+                return True
         return super().eventFilter(obj, event)
+
 
 class TranslatorApp(QWidget):
     """主界面"""
+
     def __init__(self):
         super().__init__()
 
@@ -87,6 +226,7 @@ class TranslatorApp(QWidget):
 
             floating_window = FloatingTranslation(self)  # 创建新窗口
             floating_window.set_translation(selected_text, pos)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
