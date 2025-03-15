@@ -465,23 +465,24 @@ class Player(QtWidgets.QMainWindow):
             self.mediaplayer.set_nsobject(int(self.videoframe.winId()))
 
         # disable playbutton
-        self.playbutton.setEnabled(False)
-        # extract all subtitles
-        sub_files, langs = extract_all(filename[0])
-        for i, sub_file in enumerate(sub_files):
-            vtt = convert_srt_to_vtt(sub_file, True)
-            sub_files[i] = vtt
+        #self.playbutton.setEnabled(False)
 
-        for i, lang in enumerate(langs):
-            self.subtitle_tracks.append((i, lang, lang))
-
-        self.sub_file_num = len(sub_files)
-        print("x(self.sub_file_num)", self.sub_file_num)
-        self.playbutton.setEnabled(True)
-        if self.sub_file_num > 0:
-            # choose the first subtitle track as default
-            self.backend_load_caption(sub_files[0])
-            print("auto load subtitle tracks", self.subtitle_tracks)
+        # # extract all subtitles
+        # sub_files, langs = extract_all(filename[0])
+        # for i, sub_file in enumerate(sub_files):
+        #     vtt = convert_srt_to_vtt(sub_file, True)
+        #     sub_files[i] = vtt
+        #
+        # for i, lang in enumerate(langs):
+        #     self.subtitle_tracks.append((i, lang, lang))
+        #
+        # self.sub_file_num = len(sub_files)
+        # print("x(self.sub_file_num)", self.sub_file_num)
+        # self.playbutton.setEnabled(True)
+        # if self.sub_file_num > 0:
+        #     # choose the first subtitle track as default
+        #     self.backend_load_caption(sub_files[0])
+        #     print("auto load subtitle tracks", self.subtitle_tracks)
 
     def set_volume(self, volume):
         """Set the volume

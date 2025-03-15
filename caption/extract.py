@@ -3,6 +3,7 @@ import os
 import ffmpeg
 import base64
 
+
 def get_video_dimensions(video_path):
     try:
         probe = ffmpeg.probe(video_path)
@@ -20,13 +21,11 @@ def get_video_dimensions(video_path):
         return None
 
 
-
-
 def get_subtitle_tracks(video_path):
     """ 获取视频文件的字幕轨道信息 """
     metadata = ffmpeg.probe(video_path)
     subtitle_tracks = []
-    
+
     for stream in metadata['streams']:
         print(stream)
         if stream['codec_type'] == 'subtitle':
@@ -34,8 +33,9 @@ def get_subtitle_tracks(video_path):
             codec_name = stream.get('codec_name', 'unknown')
             language = stream['tags'].get('language', 'unknown') if 'tags' in stream else 'unknown'
             subtitle_tracks.append((track_index, codec_name, language))
-    
+
     return subtitle_tracks
+
 
 def extract_subtitles(video_path, output_srt="output.srt", track_index=0):
     """
@@ -55,6 +55,7 @@ def extract_subtitles(video_path, output_srt="output.srt", track_index=0):
 
     except ffmpeg.Error as e:
         print("提取字幕时出错:", e)
+
 
 # "/home/ssx/code/youtube/test5.mkv"
 def extract_all(video_path):
@@ -77,18 +78,16 @@ def extract_all(video_path):
             print(f"提取字幕轨道 {i} ({track}) 时出错:", e)
         finally:
             i += 1
-    return paths,langs
+    return paths, langs
 
-#extract_all("/home/ssx/code/youtube/test5.mkv")
-#extract_subtitles("/home/ssx/code/youtube/test5.mkv", "/home/ssx/code/youtube/test5.srt", track_index=0)
+
+# extract_all("/home/ssx/code/youtube/test5.mkv")
+# extract_subtitles("/home/ssx/code/youtube/test5.mkv", "/home/ssx/code/youtube/test5.srt", track_index=0)
 
 # Example usage:
 # video_path = "/home/ssx/code/youtube/test5.mkv"
 # width, height = get_video_dimensions(video_path)
 # print(f"Width: {width}, Height: {height}")
-
-
-
 
 
 def get_video_frame_as_base64(video_path, time="00:00:01"):
@@ -115,7 +114,6 @@ def get_video_frame_as_base64(video_path, time="00:00:01"):
     except ffmpeg.Error as e:
         print("FFmpeg error:", e.stderr.decode())
         return None
-
 
 # Example usage:
 # video_path = "/home/ssx/code/youtube/test5.mkv"
