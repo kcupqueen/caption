@@ -67,7 +67,7 @@ class Player(QtWidgets.QMainWindow):
         self.setWindowTitle("SwordPlayer🗡️")
 
         # Create a basic vlc instance
-        self.instance = vlc.Instance("--file-caching=5000", "--network-caching=5000")
+        self.instance = vlc.Instance("--file-caching=5000", "--network-caching=5000", "--no-sub-autodetect-file")
 
         self.media = None
 
@@ -153,7 +153,7 @@ class Player(QtWidgets.QMainWindow):
         # caption word lookup
         self.floatingWindow = FloatingTranslation(self)
 
-        #self.floatingWindow.windowClosed.connect(self.go_on_play)  # Connect signal to slot
+        # self.floatingWindow.windowClosed.connect(self.go_on_play)  # Connect signal to slot
         self.floatingWindow.captionReady.connect(self.display_translation)
 
         self.vboxlayout = QtWidgets.QVBoxLayout()
@@ -192,10 +192,6 @@ class Player(QtWidgets.QMainWindow):
         open_action.triggered.connect(self.open_file)
         close_action.triggered.connect(sys.exit)
 
-        self.timer = QtCore.QTimer(self)
-        self.timer.setInterval(100)
-        self.timer.timeout.connect(self.update_ui)
-
     def mousePressEvent(self, event: QMouseEvent):
         mouse_press_event(self, event)
 
@@ -233,6 +229,7 @@ class Player(QtWidgets.QMainWindow):
         if len(audio_tracks) > 0:
             self.audio_tracks = audio_tracks
         self.mediaplayer.video_set_spu(-1)
+        print("disable_spu_now")
 
         subtitle_menu = self.caption_menu.addMenu("Subtitle Tracks")
         subtitle_tracks = self.subtitle_tracks
@@ -289,8 +286,6 @@ class Player(QtWidgets.QMainWindow):
         except Exception as e:
             print("Error getting SPU content:", str(e))
 
-
-
     def display_translation(self, event=None):
         pos = event['pos']
         state = event['state']
@@ -301,26 +296,20 @@ class Player(QtWidgets.QMainWindow):
     def play_pause(self):
         """Toggle play/pause status
         """
+        self.mediaplayer.video_set_spu(-1)
         print('play_pause')
         if self.mediaplayer.is_playing():
             self.mediaplayer.pause()
             self.playbutton.setText("Play")
             self.is_paused = True
-            self.timer.stop()
         else:
             if self.mediaplayer.play() == -1:
                 # self.open_file()
                 return
 
-            print("start to play now->")
             self.mediaplayer.play()
-
             self.playbutton.setText("Pause")
-            print("set button pause -->")
-            self.timer.start()
             self.is_paused = False
-            width, height = self.mediaplayer.video_get_size(0)
-            print(f"Video Size: {width}x{height}")
             print("is playing?", self.mediaplayer.is_playing())
 
     def pause(self, action):
@@ -328,7 +317,6 @@ class Player(QtWidgets.QMainWindow):
             self.mediaplayer.pause()
             self.playbutton.setText("Play")
             self.is_paused = True
-            self.timer.stop()
             print('pause action: {}'.format(action))
 
     def stop(self):
@@ -400,6 +388,10 @@ class Player(QtWidgets.QMainWindow):
         event_manager = self.mediaplayer.event_manager()
 
         def time_changed_callback(event):
+            media_pos = int(self.mediaplayer.get_position() * 1000)
+            # print('set position', media_pos)
+            QtCore.QMetaObject.invokeMethod(self.positionslider, "setValue", QtCore.Qt.QueuedConnection,
+                                            QtCore.Q_ARG(int, media_pos))
             current_time = self.mediaplayer.get_time()  # 获取当前播放时间（单位：毫秒）
             if self.captionList:
                 cur_caption = find_caption(current_time, self.captionList, self.cur_caption_seq)
@@ -457,7 +449,7 @@ class Player(QtWidgets.QMainWindow):
         thread.start()
 
         resize_player(self, ffmpeg_w, ffmpeg_h)
-        #self.play_pause()
+        # self.play_pause()
 
     def set_volume(self, volume):
         """Set the volume
@@ -473,11 +465,9 @@ class Player(QtWidgets.QMainWindow):
         # more precise are the results (1000 should suffice).
 
         # Set the media position to where the slider was dragged
-        self.timer.stop()
         pos = self.positionslider.value()
         print('pos', pos)
         self.mediaplayer.set_position(pos / 1000.0)
-        self.timer.start()
         self.cur_caption_seq.clear()
 
     def update_ui(self):
@@ -486,19 +476,8 @@ class Player(QtWidgets.QMainWindow):
         # Set the slider's position to its corresponding media position
         # Note that the setValue function only takes values of type int,
         # so we must first convert the corresponding media position.
-        media_pos = int(self.mediaplayer.get_position() * 1000)
-        # print('set position', media_pos)
-        self.positionslider.setValue(media_pos)
 
-        # No need to call this function if nothing is played
-        if not self.mediaplayer.is_playing():
-            self.timer.stop()
 
-            # After the video finished, the play button stills shows "Pause",
-            # which is not the desired behavior of a media player.
-            # This fixes that "bug".
-            if not self.is_paused:
-                self.stop()
 
     def load_caption(self):
         """Open a file dialog to load a caption file"""
@@ -516,7 +495,6 @@ class Player(QtWidgets.QMainWindow):
                 html = get_template("welcome", "已发现内置[En]字幕文件，可以开始播放视频")
                 QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
                                                 QtCore.Q_ARG(str, html))
-
 
     def on_selection_changed(self, event):
         cursor = self.caption.textCursor()
