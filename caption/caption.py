@@ -42,7 +42,7 @@ def get_captions(subtitle_file):
         x['caption'].start_in_milliseconds = time_to_milliseconds(caption.start)
         x['caption'].end_in_milliseconds = time_to_milliseconds(caption.end)
         captions.append(x)
-        print(x['caption'].start_in_milliseconds, x['caption'].end_in_milliseconds)
+        # print(x['caption'].start_in_milliseconds, x['caption'].end_in_milliseconds)
 
     return captions
 

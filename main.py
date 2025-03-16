@@ -83,15 +83,15 @@ class Player(QtWidgets.QMainWindow):
 
         self.create_ui()
 
-    def clear_cache(self):
+    def clear_player_cache(self):
         self.play_triggered_times = 0
         self.sub_file_num = 0
         self.subtitle_tracks = []
         self.audio_tracks = []
-        if len(self.translation_threads) > 0:
-            for thread in self.translation_threads:
-                thread.quit()
-        self.translation_threads = []
+        # if len(self.translation_threads) > 0:
+        #     for thread in self.translation_threads:
+        #         thread.quit()
+        # self.translation_threads = []
         self.captionList = []
         self.cur_caption_seq = set()
         self.update_tracks_menu()
@@ -385,7 +385,7 @@ class Player(QtWidgets.QMainWindow):
 
     def open_file(self):
         """Open a media file in a MediaPlayer"""
-        self.clear_cache()
+        #self.clear_player_cache()
         dialog_txt = "Choose Media File"
         filename = QtWidgets.QFileDialog.getOpenFileName(self, dialog_txt, os.path.expanduser('~'))
         if not filename or not filename[0]:
@@ -441,32 +441,20 @@ class Player(QtWidgets.QMainWindow):
         elif platform.system() == "Darwin":  # for MacOS
             self.mediaplayer.set_nsobject(int(self.videoframe.winId()))
 
-        def loading_animation():
-            first_image = get_video_frame_as_base64(filename[0])
-            self.set_cover_image(first_image)
-            base_text = "Loading "  # 初始文本
-            progress_char = "█"  # 进度条字符
-            max_progress = 10  # 最大长度
-            current_progress = 0  # 当前进度
-
-            # 创建定时器
-            while True:
-                time.sleep(0.5)
-                current_progress += 1
-                if current_progress > max_progress:
-                    current_progress = 0
-                progress_text = progress_char * current_progress
-                text = base_text + progress_text
-                self.caption.setText(text)
-
-        def parse_caption_files():
-            sub_files, langs = extract_all(filename[0])
-            self.subtitle_tracks = list(zip(range(len(sub_files)), sub_files, langs))
-            self.playbutton.setEnabled(True)
-            if self.sub_file_num > 0:
-                # choose the first subtitle track as default
-                self.backend_load_caption(sub_files[0])
-                print("auto load subtitle tracks", self.subtitle_tracks)
+        # def parse_caption_files():
+        #     sub_files, langs = extract_all(filename[0])
+        #     self.subtitle_tracks = list(zip(range(len(sub_files)), sub_files, langs))
+        #     # get english subtitle tracks
+        #     en_files = [f for f in sub_files if 'en' in f]
+        #     self.playbutton.setEnabled(True)
+        #     if len(en_files) > 0:
+        #         # choose the first subtitle track as default
+        #         print("auto load subtitle tracks", en_files[0])
+        #         self.backend_load_caption(en_files[0])
+        #
+        # thread = QtThread(parse_caption_files)
+        # thread.finished.connect(self.track_parsed)
+        # thread.start()
 
         resize_player(self, ffmpeg_w, ffmpeg_h)
 
@@ -522,8 +510,12 @@ class Player(QtWidgets.QMainWindow):
         if filename:
             ret = get_captions(filename)
             if len(ret) > 0:
+                print("get options ok", len(ret))
                 self.captionList = ret
-                self.caption.setText("load caption {} successfully, length:{} ".format(filename, len(ret)))
+                html = get_template("welcome", "已发现内置[En]字幕文件，可以开始播放视频")
+                QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
+                                                QtCore.Q_ARG(str, html))
+
 
     def on_selection_changed(self, event):
         cursor = self.caption.textCursor()
