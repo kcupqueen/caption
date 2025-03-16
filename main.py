@@ -153,7 +153,7 @@ class Player(QtWidgets.QMainWindow):
         # caption word lookup
         self.floatingWindow = FloatingTranslation(self)
 
-        self.floatingWindow.windowClosed.connect(self.go_on_play)  # Connect signal to slot
+        #self.floatingWindow.windowClosed.connect(self.go_on_play)  # Connect signal to slot
         self.floatingWindow.captionReady.connect(self.display_translation)
 
         self.vboxlayout = QtWidgets.QVBoxLayout()
@@ -289,16 +289,7 @@ class Player(QtWidgets.QMainWindow):
         except Exception as e:
             print("Error getting SPU content:", str(e))
 
-    def go_on_play(self, event=None):
-        print('go_on_play', event)
-        self.play_triggered_times += 1
-        if not self.mediaplayer.is_playing():
-            self.mediaplayer.play()
-            self.playbutton.setText("Pause")
-            self.timer.start()
-            self.is_paused = False
-        if self.play_triggered_times < 2:
-            self.track_parsed(event)
+
 
     def display_translation(self, event=None):
         pos = event['pos']
@@ -325,10 +316,12 @@ class Player(QtWidgets.QMainWindow):
             self.mediaplayer.play()
 
             self.playbutton.setText("Pause")
+            print("set button pause -->")
             self.timer.start()
             self.is_paused = False
             width, height = self.mediaplayer.video_get_size(0)
             print(f"Video Size: {width}x{height}")
+            print("is playing?", self.mediaplayer.is_playing())
 
     def pause(self, action):
         if self.mediaplayer.is_playing():
@@ -446,18 +439,25 @@ class Player(QtWidgets.QMainWindow):
             sub_files, langs = extract_all(filename[0])
             self.subtitle_tracks = list(zip(range(len(sub_files)), sub_files, langs))
             # get english subtitle tracks
-            en_files = [f for f in sub_files if 'en' in f]
             self.playbutton.setEnabled(True)
-            if len(en_files) > 0:
+            if len(sub_files) > 0:
+                en_files = []
+                for i, f in enumerate(sub_files):
+                    if langs[i] == "eng" or langs[i] == "en" or langs[i] == "English" or langs[i] == "English (US)":
+                        en_files.append(f)
+                        print("find ", langs[i], "filename", f)
                 # choose the first subtitle track as default
-                print("auto load subtitle tracks", en_files[0])
-                self.backend_load_caption(en_files[0])
+                print("en_files", len(en_files))
+                if len(en_files) > 0:
+                    print("auto load subtitle tracks", en_files[0])
+                    self.backend_load_caption(en_files[0])
 
         thread = QtThread(parse_caption_files)
         thread.finished.connect(self.track_parsed)
         thread.start()
 
         resize_player(self, ffmpeg_w, ffmpeg_h)
+        #self.play_pause()
 
     def set_volume(self, volume):
         """Set the volume

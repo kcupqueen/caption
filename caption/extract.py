@@ -22,22 +22,29 @@ def get_video_dimensions(video_path):
 
 
 def get_subtitle_tracks(video_path):
-    """ 获取视频文件的字幕轨道信息 """
+    """ 获取视频文件的字幕轨道信息，并计算相对索引 """
     metadata = ffmpeg.probe(video_path)
     subtitle_tracks = []
-    # 2025-03-15 support chinese english subtitle
     lang_dict = {
         "eng": "English",
         "chi": "Chinese",
         "zho": "Chinese",
     }
-    for stream in metadata['streams']:
-        if stream['codec_type'] == 'subtitle':
-            track_index = stream['index']
-            codec_name = stream.get('codec_name', 'unknown')
-            language = stream['tags'].get('language', 'unknown') if 'tags' in stream else 'unknown'
-            if language in lang_dict:
-                subtitle_tracks.append((track_index, codec_name, language))
+
+    # **找出所有字幕流的索引**
+    subtitle_streams = [
+        stream for stream in metadata['streams'] if stream['codec_type'] == 'subtitle'
+    ]
+
+    for sub_index, stream in enumerate(subtitle_streams):
+        track_index = stream['index']  # FFmpeg 内部的索引（所有流中的索引）
+        codec_name = stream.get('codec_name', 'unknown')
+        language = stream['tags'].get('language', 'unknown') if 'tags' in stream else 'unknown'
+
+        if language in lang_dict:
+            print(
+                f"sub_index={sub_index}, track_index={track_index}, codec_name={codec_name}, language={language}")
+            subtitle_tracks.append((sub_index, codec_name, language))  # 这里返回的是相对索引 sub_index
 
     return subtitle_tracks
 
@@ -68,21 +75,22 @@ def extract_all(video_path):
     tracks = get_subtitle_tracks(video_path)
     paths = []
     langs = []
-    i = 0
+
     for track in tracks:
-        print(f"extract track {i} ({track})...")
+
         try:
             t_index = track[0]
-            print("extract index=", i)
+            print("extract index=", t_index)
             subtitle_name = f"{os.path.splitext(video_path)[0]}_{t_index}.srt"
-            extract_subtitles(video_path, subtitle_name, track_index=i)
+            extract_subtitles(video_path, subtitle_name, track_index=t_index)
             paths.append(subtitle_name)
             langs.append(track[2])
 
         except Exception as e:
             print(f"提取字幕轨道 {i} ({track}) 时出错:", e)
         finally:
-            i += 1
+            pass
+
     return paths, langs
 
 
