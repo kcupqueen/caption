@@ -385,7 +385,7 @@ class Player(QtWidgets.QMainWindow):
 
     def open_file(self):
         """Open a media file in a MediaPlayer"""
-        #self.clear_player_cache()
+        self.clear_player_cache()
         dialog_txt = "Choose Media File"
         filename = QtWidgets.QFileDialog.getOpenFileName(self, dialog_txt, os.path.expanduser('~'))
         if not filename or not filename[0]:
@@ -425,8 +425,9 @@ class Player(QtWidgets.QMainWindow):
                                                     QtCore.Q_ARG(str, html))
 
         event_manager.event_attach(vlc.EventType.MediaPlayerTimeChanged, time_changed_callback)
-        # attack play event
-        event_manager.event_attach(vlc.EventType.MediaPlayerPlaying, self.go_on_play)
+        # attack play event bug!!!
+        # event_manager.event_attach(vlc.EventType.MediaPlayerPlaying, self.go_on_play)
+
         # Parse the metadata of the file
         self.media.parse()
 
@@ -441,20 +442,20 @@ class Player(QtWidgets.QMainWindow):
         elif platform.system() == "Darwin":  # for MacOS
             self.mediaplayer.set_nsobject(int(self.videoframe.winId()))
 
-        # def parse_caption_files():
-        #     sub_files, langs = extract_all(filename[0])
-        #     self.subtitle_tracks = list(zip(range(len(sub_files)), sub_files, langs))
-        #     # get english subtitle tracks
-        #     en_files = [f for f in sub_files if 'en' in f]
-        #     self.playbutton.setEnabled(True)
-        #     if len(en_files) > 0:
-        #         # choose the first subtitle track as default
-        #         print("auto load subtitle tracks", en_files[0])
-        #         self.backend_load_caption(en_files[0])
-        #
-        # thread = QtThread(parse_caption_files)
-        # thread.finished.connect(self.track_parsed)
-        # thread.start()
+        def parse_caption_files():
+            sub_files, langs = extract_all(filename[0])
+            self.subtitle_tracks = list(zip(range(len(sub_files)), sub_files, langs))
+            # get english subtitle tracks
+            en_files = [f for f in sub_files if 'en' in f]
+            self.playbutton.setEnabled(True)
+            if len(en_files) > 0:
+                # choose the first subtitle track as default
+                print("auto load subtitle tracks", en_files[0])
+                self.backend_load_caption(en_files[0])
+
+        thread = QtThread(parse_caption_files)
+        thread.finished.connect(self.track_parsed)
+        thread.start()
 
         resize_player(self, ffmpeg_w, ffmpeg_h)
 
