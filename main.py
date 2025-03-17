@@ -35,7 +35,7 @@ from PyQt5.QtGui import QMouseEvent
 from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
 from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType, convert_srt_to_vtt, \
-    get_captions_from_string
+    get_captions_from_string, CaptionType, find_captions
 from caption.extract import get_subtitle_tracks, extract_all, get_video_dimensions, get_video_frame_as_base64, \
     extract_all_as_strings
 from caption.stardict import OfflineTranslator
@@ -61,6 +61,7 @@ class Player(QtWidgets.QMainWindow):
 
     def __init__(self, master=None):
         QtWidgets.QMainWindow.__init__(self, master)
+        self.caption_type = CaptionType.NORMAL
         self.play_triggered_times = 0
         self.sub_file_num = 0
         self.caption_menu = None
@@ -436,20 +437,40 @@ class Player(QtWidgets.QMainWindow):
                                             QtCore.Q_ARG(int, media_pos))
             current_time = self.mediaplayer.get_time()  # 获取当前播放时间（单位：毫秒）
             if self.captionList:
-                cur_caption = find_caption(current_time, self.captionList, self.cur_caption_seq)
-                # print('event', event)
-                # print('current_time', current_time)
-                # print('cur_caption', cur_caption)
-                if cur_caption and cur_caption['seq'] not in self.cur_caption_seq:
-                    self.cur_caption_seq.clear()
-                    text = cur_caption['caption'].text
-                    text = text.replace('&nbsp;', ' ').replace('\n', ' ')
-                    text = text.replace('{', '{{').replace('}', '}}')
+                if self.caption_type == CaptionType.NORMAL:
+                    cur_caption = find_caption(current_time, self.captionList, self.cur_caption_seq)
+                    if cur_caption and cur_caption['seq'] not in self.cur_caption_seq:
+                        self.cur_caption_seq.clear()
+                        text = cur_caption['caption'].text
+                        text = text.replace('&nbsp;', ' ').replace('\n', ' ')
+                        text = text.replace('{', '{{').replace('}', '}}')
 
-                    self.cur_caption_seq.add(cur_caption['seq'])
-                    html = get_template("caption", text)
-                    QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
-                                                    QtCore.Q_ARG(str, html))
+                        self.cur_caption_seq.add(cur_caption['seq'])
+                        html = get_template("caption", text)
+                        QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
+                                                        QtCore.Q_ARG(str, html))
+                elif self.caption_type == CaptionType.YOUTUBE_AUTO_GENERATED:
+                    all_text = []
+                    first, second = find_captions(current_time, self.captionList, self.cur_caption_seq)
+                    #print("first", first, "second", second, "cur", current_time)
+                    if first and first['seq'] in self.cur_caption_seq:
+                        return
+                    if second and second['seq'] in self.cur_caption_seq:
+                        return
+                    self.cur_caption_seq.clear()
+                    if first:
+                        self.cur_caption_seq.add(first['seq'])
+                        all_text.append(first['caption'].text)
+                    if second:
+                        self.cur_caption_seq.add(second['seq'])
+                        all_text.append(second['caption'].text)
+                    if len(all_text) > 0:
+                        text = " ".join(all_text)
+                        text = text.replace('&nbsp;', ' ').replace('\n', ' ')
+                        text = text.replace('{', '{{').replace('}', '}}')
+                        html = get_template("caption", text)
+                        QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
+                                                        QtCore.Q_ARG(str, html))
 
         event_manager.event_attach(vlc.EventType.MediaPlayerTimeChanged, time_changed_callback)
 
@@ -521,20 +542,24 @@ class Player(QtWidgets.QMainWindow):
 
     def backend_load_caption(self, filename):
         if filename:
-            ret = get_captions(filename)
+            ret, _type = get_captions(filename)
             if len(ret) > 0:
                 print("get options ok", len(ret))
+
                 self.captionList = ret
-                html = get_template("welcome", "已发现内置[En]字幕文件，可以开始播放视频")
+                html = get_template("welcome", f"加载[En]字幕文件成功, _type: {_type}")
                 QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
                                                 QtCore.Q_ARG(str, html))
+                self.caption_type = _type
+
+
     def backend_load_caption_from_str(self, content):
         if len(content) > 0:
             ret = get_captions_from_string(content)
             if len(ret) > 0:
                 print("get options ok", len(ret))
                 self.captionList = ret
-                html = get_template("welcome", "已发现内置[En]字幕文件，可以开始播放视频")
+                html = get_template("welcome", "已发现内置[En]字幕文件")
                 QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
                                                 QtCore.Q_ARG(str, html))
 

@@ -14,7 +14,7 @@ def get_video_dimensions(video_path):
             height = video_stream['height']
             return width, height
         else:
-            raise ValueError("No video stream found")
+            raise ValueError(f"No video stream found {video_path}")
 
     except ffmpeg.Error as e:
         print("FFmpeg error:", e.stderr.decode())

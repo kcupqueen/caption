@@ -18,10 +18,16 @@ def convert_srt_to_vtt(srt_file, delete_srt=False):
         print(f"Error converting SRT to VTT: {str(e)}")
         return None
 
+
+# define enum for caption type
+class CaptionType:
+    YOUTUBE_AUTO_GENERATED = 1
+    NORMAL = 2
+
 def get_captions(subtitle_file):
     captions = []
     i = 0
-    
+    _type = CaptionType.NORMAL
     # Check file extension
     file_ext = os.path.splitext(subtitle_file)[1].lower()
     vtt_file = subtitle_file
@@ -43,9 +49,19 @@ def get_captions(subtitle_file):
         x['caption'].start_in_milliseconds = time_to_milliseconds(caption.start)
         x['caption'].end_in_milliseconds = time_to_milliseconds(caption.end)
         captions.append(x)
-        # print(x['caption'].start_in_milliseconds, x['caption'].end_in_milliseconds)
+        # check if raw text contains auto-generated text: <c> and </c>, only check first 10 raws
+        if i < 10 and '<c>' in caption.raw_text and '</c>' in caption.raw_text:
+            _type = CaptionType.YOUTUBE_AUTO_GENERATED
+        #print(caption.end_in_milliseconds, caption.raw_text, "\n")
 
-    return captions
+    if _type == CaptionType.YOUTUBE_AUTO_GENERATED:
+        print("Auto-generated captions detected")
+        # only keep odd index captions
+        captions = [c for c in captions if c['seq'] % 2 == 0]
+        # reorder seq
+        for i, c in enumerate(captions):
+            c['seq'] = i
+    return captions, _type
 
 def find_caption(currentTime, captionList, cur_seq):
     seq = -1
@@ -55,6 +71,7 @@ def find_caption(currentTime, captionList, cur_seq):
     start = 0
     if seq != -1:
         start = seq
+    print("start from seq:", start)
     for i in range(start, len(captionList)):
         if captionList[i]['caption'].end_in_milliseconds > currentTime:
             seq = i
@@ -63,6 +80,28 @@ def find_caption(currentTime, captionList, cur_seq):
         return captionList[seq]
 
     return None
+
+
+def find_captions(currentTime, captionList, cur_seq):
+    seq = -1
+    # get max seq form set
+    if cur_seq and len(cur_seq) > 0:
+        seq = max(cur_seq)
+    # find 2 captions which end time is greater than currentTime
+    start = 0
+    if seq != -1:
+        start = seq
+    for i in range(start, len(captionList)):
+        if captionList[i]['caption'].end_in_milliseconds > currentTime:
+            seq = i
+            break
+    if seq < len(captionList) - 1:
+        return captionList[seq], captionList[seq+1]
+    elif seq == len(captionList) - 1:
+        return captionList[seq], None
+    else:
+        return None, None
+
 
 
 def time_to_milliseconds(time_str):
@@ -85,17 +124,16 @@ def time_to_milliseconds(time_str):
 
 htmlTemplateCaption = '''<body>
     <style>
-        h3 {{
+        h2 {{
             font-family: "Arial", sans-serif; /* Modern, clean font */
-            font-size: 24px; /* Medium website-style font size */
+            font-size: 30px; /* Medium website-style font size */
             color: #333333; /* Dark gray text for readability */
             text-align: center; /* Center the text */
             font-weight: 600; /* Medium-bold text */
             margin-top: 20px;
         }}
     </style>
-
-    <h3>{}</h3>
+    <h2>{}</h2>
 </body>
 '''
 
