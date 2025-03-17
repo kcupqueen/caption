@@ -1,6 +1,7 @@
 import time
 import os
 import webvtt
+import tempfile
 
 def convert_srt_to_vtt(srt_file, delete_srt=False):
     """Convert SRT file to VTT format"""
@@ -157,4 +158,51 @@ def lookup_caption(content, content_type):
         return '请问，你是如何理解哈姆雷特一直拖延为父复仇这件事的？'
     else:
         return None
+
+def get_captions_from_string(subtitle_content, content_format='srt'):
+    """
+    Parse captions from a subtitle string
+    :param subtitle_content: String containing subtitle content
+    :param content_format: Format of the subtitle content ('srt' or 'vtt')
+    :return: List of caption objects
+    """
+    captions = []
+    i = 0
+    
+    try:
+        # Convert SRT content to VTT if needed
+        if content_format.lower() == 'srt':
+            # Create a temporary file to use webvtt's conversion
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.srt', delete=False) as temp_srt:
+                temp_srt.write(subtitle_content)
+                temp_srt.flush()
+                
+            vtt_content = webvtt.from_srt(temp_srt.name).content
+            os.unlink(temp_srt.name)  # Clean up temp file
+        elif content_format.lower() == 'vtt':
+            vtt_content = subtitle_content
+        else:
+            print("Unsupported subtitle format. Please use VTT or SRT content")
+            return captions
+
+        # Parse VTT content
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.vtt', delete=False) as temp_vtt:
+            temp_vtt.write(vtt_content)
+            temp_vtt.flush()
+            
+            # Read the VTT content
+            for caption in webvtt.read(temp_vtt.name):
+                x = {'caption': caption, 'seq': i}
+                i += 1
+                x['caption'].start_in_milliseconds = time_to_milliseconds(caption.start)
+                x['caption'].end_in_milliseconds = time_to_milliseconds(caption.end)
+                captions.append(x)
+            
+            os.unlink(temp_vtt.name)  # Clean up temp file
+            
+        return captions
+        
+    except Exception as e:
+        print(f"Error parsing subtitle content: {str(e)}")
+        return captions
 

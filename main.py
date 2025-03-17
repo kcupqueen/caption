@@ -34,8 +34,10 @@ from PyQt5.QtGui import QMouseEvent
 
 from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
-from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType, convert_srt_to_vtt
-from caption.extract import get_subtitle_tracks, extract_all, get_video_dimensions, get_video_frame_as_base64
+from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType, convert_srt_to_vtt, \
+    get_captions_from_string
+from caption.extract import get_subtitle_tracks, extract_all, get_video_dimensions, get_video_frame_as_base64, \
+    extract_all_as_strings
 from caption.stardict import OfflineTranslator
 from widget.player_controller import resize_player
 from widget.player_event import mouse_press_event
@@ -63,12 +65,13 @@ class Player(QtWidgets.QMainWindow):
         self.sub_file_num = 0
         self.caption_menu = None
         self.subtitle_tracks = []
+        self.embed_caption_dict = {}
         self.audio_tracks = []
         self.translation_threads = []
         self.setWindowTitle("SwordPlayer🗡️")
 
         # Create a basic vlc instance
-        self.instance = vlc.Instance("--file-caching=5000", "--network-caching=5000", "--no-sub-autodetect-file")
+        self.instance = vlc.Instance("--file-caching=5000", "--network-caching=5000", "--no-sub-autodetect-file", "--no-spu")
 
         self.media = None
 
@@ -221,6 +224,10 @@ class Player(QtWidgets.QMainWindow):
         # Use invokeMethod to update UI from the main thread
         QtCore.QMetaObject.invokeMethod(self, "update_tracks_menu",
                                         QtCore.Qt.ConnectionType.QueuedConnection)
+        # invoke playbutton to be enabled
+        QtCore.QMetaObject.invokeMethod(self.playbutton, "setEnabled",
+                                        QtCore.Qt.ConnectionType.QueuedConnection,
+                                        QtCore.Q_ARG(bool, True))
 
     @QtCore.pyqtSlot()
     def update_tracks_menu(self):
@@ -250,8 +257,13 @@ class Player(QtWidgets.QMainWindow):
 
         if len(audio_tracks) > 0:
             self.audio_tracks = audio_tracks
-        self.mediaplayer.video_set_spu(-1)
-        print("disable_spu_now")
+        # Disable subtitles more thoroughly
+        self.mediaplayer.video_set_spu(-1)  # Try basic disable
+        self.mediaplayer.video_set_subtitle_file(None)  # Clear any subtitle file
+        self.mediaplayer.video_set_spu_delay(0)  # Reset subtitle delay
+        # Force disable track selection
+        self.mediaplayer.video_set_track(-1)
+        print("Disabled subtitles using multiple methods")
 
         subtitle_menu = self.caption_menu.addMenu("Subtitle Tracks")
         subtitle_tracks = self.subtitle_tracks
@@ -318,7 +330,7 @@ class Player(QtWidgets.QMainWindow):
     def play_pause(self):
         """Toggle play/pause status
         """
-        self.mediaplayer.video_set_spu(-1)
+        #self.mediaplayer.video_set_spu(-1)
         print('play_pause')
         if self.mediaplayer.is_playing():
             self.mediaplayer.pause()
@@ -408,6 +420,8 @@ class Player(QtWidgets.QMainWindow):
 
         # Continue with media loading...
         self.media = self.instance.media_new(filename[0])
+        self.media.add_options('no-sub-autodetect-file')
+        self.media.add_options('no-spu')
 
         # Put the media in the media player
         self.mediaplayer.set_media(self.media)
@@ -455,22 +469,23 @@ class Player(QtWidgets.QMainWindow):
             self.mediaplayer.set_nsobject(int(self.videoframe.winId()))
 
         def parse_caption_files():
-            sub_files, langs = extract_all(filename[0])
-            self.subtitle_tracks = list(zip(range(len(sub_files)), sub_files, langs))
-            # get english subtitle tracks
-            self.playbutton.setEnabled(True)
-            if len(sub_files) > 0:
-                en_files = []
-                for i, f in enumerate(sub_files):
+            self.embed_caption_dict.clear()
+            subtitle_strs, langs = extract_all_as_strings(filename[0])
+            # tracks only generated from langs
+            self.subtitle_tracks = list(zip(range(len(langs)), langs))
+            if len(subtitle_strs) > 0:
+                en_index = []
+                for i, f in enumerate(subtitle_strs):
                     if langs[i] == "eng" or langs[i] == "en" or langs[i] == "English" or langs[i] == "English (US)":
-                        en_files.append(f)
-                        print("find ", langs[i], "filename", f)
-                # choose the first subtitle track as default
-                print("en_files", len(en_files))
-                if len(en_files) > 0:
-                    print("auto load subtitle tracks", en_files[0])
-                    self.backend_load_caption(en_files[0])
+                        en_index.append(i)
+                        print("find ", langs[i], "allLen", len(subtitle_strs[i]))
+                    self.embed_caption_dict[langs[i]] = subtitle_strs[i]
 
+                if len(en_index) > 0:
+                    self.backend_load_caption_from_str(subtitle_strs[en_index[0]])
+            print("self.embed_caption_dict keys", self.embed_caption_dict.keys())
+
+        self.playbutton.setEnabled(False)
         GLOBAL_THREAD_POOL.start(Worker(parse_caption_files,  on_finished=self.track_parsed))
 
         resize_player(self, ffmpeg_w, ffmpeg_h)
@@ -520,6 +535,16 @@ class Player(QtWidgets.QMainWindow):
                 html = get_template("welcome", "已发现内置[En]字幕文件，可以开始播放视频")
                 QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
                                                 QtCore.Q_ARG(str, html))
+    def backend_load_caption_from_str(self, content):
+        if len(content) > 0:
+            ret = get_captions_from_string(content)
+            if len(ret) > 0:
+                print("get options ok", len(ret))
+                self.captionList = ret
+                html = get_template("welcome", "已发现内置[En]字幕文件，可以开始播放视频")
+                QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
+                                                QtCore.Q_ARG(str, html))
+
 
     def on_selection_changed(self, event):
         cursor = self.caption.textCursor()

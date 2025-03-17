@@ -132,3 +132,47 @@ def get_video_frame_as_base64(video_path, time="00:00:01"):
 # video_path = "/home/ssx/code/youtube/test5.mkv"
 # image_base64 = get_video_frame_as_base64(video_path)
 # print(image_base64[:100] + "...")  # Print first 100 chars for preview
+
+GLOBAL_EMBEDDING_RAW_CAPTION = {
+
+}
+
+
+def extract_subtitle_as_string(video_path, track_index=0):
+    """
+    Extract subtitle track as string using ffmpeg
+    :param video_path: Input video file path
+    :param track_index: Subtitle track index to extract
+    :return: Subtitle content as string
+    """
+    try:
+        # Use pipe output to get subtitle content directly
+        out, _ = (
+            ffmpeg
+            .input(video_path)
+            .output('pipe:', map=f'0:s:{track_index}', format='srt')
+            .run(capture_stdout=True, capture_stderr=True)
+        )
+        return out.decode('utf-8')
+    except ffmpeg.Error as e:
+        print("Error extracting subtitle:", e)
+        return None
+
+def extract_all_as_strings(video_path):
+    """ Extract all subtitle tracks as strings """
+    tracks = get_subtitle_tracks(video_path)
+    subtitles = []
+    langs = []
+
+    for track in tracks:
+        try:
+            t_index = track[0]
+            print("extracting subtitle index=", t_index)
+            subtitle_content = extract_subtitle_as_string(video_path, track_index=t_index)
+            if subtitle_content:
+                subtitles.append(subtitle_content)
+                langs.append(track[2])
+        except Exception as e:
+            print(f"Error extracting subtitle track {track}:", e)
+
+    return subtitles, langs

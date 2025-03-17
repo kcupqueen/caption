@@ -2,8 +2,6 @@ import time
 
 from PyQt5.QtCore import QThread, pyqtSignal
 
-from caption.extract import get_video_frame_as_base64, extract_all
-
 
 class QtThread(QThread):
     finished = pyqtSignal(object)  # 任务完成后发出信号，支持任意类型的结果
