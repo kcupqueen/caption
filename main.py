@@ -510,13 +510,6 @@ class Player(QtWidgets.QMainWindow):
         self.mediaplayer.set_position(pos / 1000.0)
         self.cur_caption_seq.clear()
 
-    def update_ui(self):
-        """Updates the user interface"""
-
-        # Set the slider's position to its corresponding media position
-        # Note that the setValue function only takes values of type int,
-        # so we must first convert the corresponding media position.
-
 
 
     def load_caption(self):
