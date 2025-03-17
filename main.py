@@ -75,6 +75,8 @@ class Player(QtWidgets.QMainWindow):
         # Create an empty vlc media player
         self.mediaplayer = self.instance.media_player_new()
         self.mediaplayer.audio_set_volume(50)
+        event_manager = self.mediaplayer.event_manager()
+        event_manager.event_attach(vlc.EventType.MediaPlayerMediaChanged, self.media_changed)
 
         self.is_paused = False
         self.captionList = []
@@ -83,6 +85,23 @@ class Player(QtWidgets.QMainWindow):
         self.translator = OfflineTranslator(dict_path, lemma_path)
 
         self.create_ui()
+
+    def media_changed(self, event):
+        print("Media Changed Event:", event)
+        # Reset UI elements when media changes
+        self.positionslider.setValue(0)
+        self.playbutton.setText("Play")
+        self.is_paused = True
+        self.cur_caption_seq.clear()
+        
+        # Clear caption display
+        welcomeHtml = get_template("welcome", 
+                                  "Media changed. Subtitles will be displayed here when available.")
+        self.caption.setHtml(welcomeHtml)
+        
+        # Hide any floating translation window if visible
+        if hasattr(self, 'floatingWindow') and self.floatingWindow.isVisible():
+            self.floatingWindow.hide()
 
     def clear_player_cache(self):
         self.play_triggered_times = 0
@@ -367,6 +386,12 @@ class Player(QtWidgets.QMainWindow):
 
     def open_file(self):
         """Open a media file in a MediaPlayer"""
+        # Pause any currently playing media first
+        if self.mediaplayer.is_playing():
+            self.mediaplayer.pause()
+            self.playbutton.setText("Play")
+            self.is_paused = True
+            
         self.clear_player_cache()
         dialog_txt = "Choose Media File"
         filename = QtWidgets.QFileDialog.getOpenFileName(self, dialog_txt, os.path.expanduser('~'))
@@ -411,8 +436,7 @@ class Player(QtWidgets.QMainWindow):
                                                     QtCore.Q_ARG(str, html))
 
         event_manager.event_attach(vlc.EventType.MediaPlayerTimeChanged, time_changed_callback)
-        # attack play event bug!!!
-        # event_manager.event_attach(vlc.EventType.MediaPlayerPlaying, self.go_on_play)
+
 
         # Parse the metadata of the file
         self.media.parse()
