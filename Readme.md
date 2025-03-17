@@ -15,6 +15,11 @@
 - [x] feature 内置字幕关闭
 - [x] feature 不要自动播放
 - [ ] feature 增加配置文件
+
+## user experience
+- [ ] feature 空格键暂停、播放
+- [ ] feature 点击屏幕暂停、播放
+- [ ] feature 加载字幕时的loading
 ## bug
 - [x] 提取字幕散乱
 - [x] 选词窗口展示位置错误
