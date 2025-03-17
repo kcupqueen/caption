@@ -161,6 +161,7 @@ class FloatingTranslation(QMainWindow):
         
     def hide_window(self):
         """Hide the window and emit the windowClosed signal"""
+        print("FloatingTranslation hide_window")
         self.hide()
         self.windowClosed.emit({})
         
@@ -187,7 +188,9 @@ class FloatingTranslation(QMainWindow):
         else:
             print("not loaded")
             self.label.setHtml(text)
-        self.move(pos)
+        new_pos = QPoint(pos.x(), pos.y() - self.height())
+        self.move(new_pos)
+        print("FloatingTranslation show at pos:", pos)
         self.show()
         self.activateWindow()
 

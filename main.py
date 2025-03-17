@@ -173,6 +173,8 @@ class Player(QtWidgets.QMainWindow):
         # caption word lookup
         self.floatingWindow = FloatingTranslation(self)
 
+        self.floatingWindow.windowClosed.connect(self.play_pause)
+
         # self.floatingWindow.windowClosed.connect(self.go_on_play)  # Connect signal to slot
         self.floatingWindow.captionReady.connect(self.display_translation)
 
