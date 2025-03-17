@@ -1,3 +1,6 @@
+from PyQt5 import QtCore
+
+
 def resize_player(w, ffmpeg_w, ffmpeg_h):
     if ffmpeg_w > 0 and ffmpeg_h > 0:
         # Set the initial size of the window based on video dimensions
@@ -15,8 +18,19 @@ def resize_player(w, ffmpeg_w, ffmpeg_h):
         # Resize the main window
         w.resize(new_width, new_height + controls_height)
 
-        # Set minimum size for the video frame
-        w.videoframe.setMinimumSize(new_width, new_height)
+        # Set a reasonable minimum size that maintains aspect ratio
+        # Allow scaling down to 30% of original size
+        min_scale = 0.3
+        min_width = max(320, int(ffmpeg_w * min_scale))
+        min_height = max(240, int(ffmpeg_h * min_scale))
+        w.videoframe.setMinimumSize(min_width, min_height)
+        
+        # Set preferred size for the video frame
+        w.videoframe.setPreferredSize(QtCore.QSize(new_width, new_height))
+        
+        # Store original video dimensions for scaling operations
+        w.original_video_width = ffmpeg_w
+        w.original_video_height = ffmpeg_h
 
         print(f"Resized window to match video dimensions: {new_width}x{new_height + controls_height}")
 
