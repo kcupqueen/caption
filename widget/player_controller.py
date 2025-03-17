@@ -1,4 +1,4 @@
-from PyQt5 import QtCore
+from PyQt5 import QtCore, QtWidgets
 
 
 def resize_player(w, ffmpeg_w, ffmpeg_h):
@@ -25,8 +25,10 @@ def resize_player(w, ffmpeg_w, ffmpeg_h):
         min_height = max(240, int(ffmpeg_h * min_scale))
         w.videoframe.setMinimumSize(min_width, min_height)
         
-        # Set preferred size for the video frame
-        w.videoframe.setPreferredSize(QtCore.QSize(new_width, new_height))
+        # Set preferred size for the video frame using sizeHint
+        size_policy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
+        w.videoframe.setSizePolicy(size_policy)
+        w.videoframe.updateGeometry()
         
         # Store original video dimensions for scaling operations
         w.original_video_width = ffmpeg_w
