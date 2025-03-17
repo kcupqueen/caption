@@ -6,4 +6,4 @@ PyQt5_sip==12.17.0
 python_vlc==3.0.21203
 spacy==3.8.4
 webvtt_py==0.5.1
-PyQtWebEngine==5.15.16
+PyQtWebEngine==5.15.6

@@ -43,6 +43,7 @@ from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
 
 from widget.thread import QtThread
+from widget.thread_pool import GLOBAL_THREAD_POOL, Worker
 
 # TODO only for development
 BASE_DIR = Path(__file__).resolve().parent
@@ -444,9 +445,7 @@ class Player(QtWidgets.QMainWindow):
                     print("auto load subtitle tracks", en_files[0])
                     self.backend_load_caption(en_files[0])
 
-        thread = QtThread(parse_caption_files)
-        thread.finished.connect(self.track_parsed)
-        thread.start()
+        GLOBAL_THREAD_POOL.start(Worker(parse_caption_files,  on_finished=self.track_parsed))
 
         resize_player(self, ffmpeg_w, ffmpeg_h)
         # self.play_pause()
@@ -521,16 +520,8 @@ class Player(QtWidgets.QMainWindow):
                         "state": "loaded"
                     })
 
-                # **存储多个线程，避免被覆盖**
-                if not hasattr(self, "translation_threads"):
-                    self.translation_threads = []  # 初始化线程列表
 
-                thread = QtThread(lookup_caption_task, selected_text)
-                thread.finished.connect(on_result)
-                thread.start()
-
-                self.translation_threads.append(thread)
-
+                GLOBAL_THREAD_POOL.start(Worker(lookup_caption_task, selected_text, on_finished=on_result))
                 # 清理已完成的线程
                 self.translation_threads = [t for t in self.translation_threads if t.isRunning()]
 
