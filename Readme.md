@@ -11,16 +11,16 @@
 ## player
 - [x] feature mkv metadata
 - [x] feature 播放器布局调整
-- [ ] feature 播放器暂停与恢复
+- [ ] feature qtool 关闭时的继续播放
 - [x] feature 内置字幕关闭
 - [x] feature 不要自动播放
 - [ ] feature 增加配置文件
 ## bug
-- [ ] 提取字幕散乱
-- [ ] 选词窗口展示位置错误
+- [x] 提取字幕散乱
+- [x] 选词窗口展示位置错误
 - [ ] 选词窗口关闭后无法自动播放
-- [ ] 加载第二个崩溃
-- [ ] 无法缩小窗口
+- [x] 加载第二个崩溃
+- [x] 无法缩小窗口
 
 ## installer
 - [ ] feature 安装包
