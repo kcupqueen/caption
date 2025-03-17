@@ -576,7 +576,8 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     player = Player()
     player.show()
-    # player.resize(640, 480)
+    # 16:9
+    player.resize(960, 640)
     sys.exit(app.exec_())
 
 
