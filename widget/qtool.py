@@ -1,9 +1,33 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QTextEdit, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QSlider, QLabel, QSizeGrip, QMainWindow, QFrame
-from PyQt5.QtGui import QTextCursor, QPalette, QColor, QIcon
-from PyQt5.QtCore import Qt, QPoint, QEvent, pyqtSignal, QSize
+from PyQt5.QtGui import QTextCursor, QPalette, QColor, QIcon, QPainter, QPolygon
+from PyQt5.QtCore import Qt, QPoint, QEvent, pyqtSignal, QSize, QDir, QUrl
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 
+
+class TriangleSizeGrip(QSizeGrip):
+    def __init__(self, parent=None):
+        super(TriangleSizeGrip, self).__init__(parent)
+        self.setFixedSize(16, 16)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # set the color and transparency, green
+        green = QColor(0, 255, 0, 150)
+
+        # 创建三角形
+        triangle = QPolygon([
+            QPoint(0, 16),  # 左下角
+            QPoint(16, 16),  # 右下角
+            QPoint(16, 0)  # 右上角
+        ])
+
+        # 填充三角形
+        painter.setBrush(green)
+        painter.setPen(Qt.NoPen)  # 无边框
+        painter.drawPolygon(triangle)
 
 class TitleBar(QFrame):
     """自定义标题栏"""
@@ -39,20 +63,12 @@ class TitleBar(QFrame):
             }
         """
         
-        self.minimize_btn = QPushButton("─")
-        self.minimize_btn.setFixedSize(btn_size, self.height())
-        self.minimize_btn.clicked.connect(self.window.showMinimized)
-        
-        self.maximize_btn = QPushButton("□")
-        self.maximize_btn.setFixedSize(btn_size, self.height())
-        self.maximize_btn.clicked.connect(self.toggle_maximize)
-        
         self.close_btn = QPushButton("✕")
         self.close_btn.setObjectName("close_button")
         self.close_btn.setFixedSize(btn_size, self.height())
         self.close_btn.clicked.connect(self.window.hide_window)  # Use the new hide_window method
         
-        for btn in (self.minimize_btn, self.maximize_btn, self.close_btn):
+        for btn in [self.close_btn]:
             btn.setStyleSheet(btn_style)
             layout.addWidget(btn)
             
@@ -64,13 +80,6 @@ class TitleBar(QFrame):
             }
         """)
         
-    def toggle_maximize(self):
-        if self.window.isMaximized():
-            self.window.showNormal()
-            self.maximize_btn.setText("□")
-        else:
-            self.window.showMaximized()
-            self.maximize_btn.setText("❐")
             
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -130,25 +139,28 @@ class FloatingTranslation(QMainWindow):
         # Add content widget to main layout
         layout.addWidget(self.content_widget)
         
-        # Styling
-        self.setStyleSheet("""
-            QMainWindow {
+        # Add QSizeGrip for resizing
+        self.size_grip = TriangleSizeGrip(self)
+        bottom_layout.addWidget(self.size_grip, 0, Qt.AlignRight | Qt.AlignBottom)
+
+        self.setStyleSheet(f"""
+            QMainWindow {{
                 background: white;
                 border: 1px solid #ccc;
                 border-radius: 5px;
-            }
-            QPushButton {
+            }}
+            QPushButton {{
                 padding: 5px;
                 margin: 2px;
                 background-color: #f0f0f0;
                 border: 1px solid #ccc;
                 border-radius: 3px;
-            }
-            QPushButton:hover {
+            }}
+            QPushButton:hover {{
                 background-color: #e0e0e0;
-            }
+            }}
         """)
-        
+
         # Window state
         self.dragging = False
         self.offset = None
