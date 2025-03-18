@@ -535,10 +535,14 @@ class Player(QtWidgets.QMainWindow):
 
     def load_caption(self):
         """Open a file dialog to load a caption file"""
-        dialog_txt = "Choose Caption File"
-        filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, dialog_txt, os.path.expanduser('~'),
-                                                            "webVTT (*.vtt);;srt Files (*.srt);;All Files (*)")
-        self.backend_load_caption(filename)
+        # only if self.mediaplayer has been set
+        if self.mediaplayer.get_media():
+            dialog_txt = "Choose Caption File"
+            filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, dialog_txt, os.path.expanduser('~'),
+                                                                "webVTT (*.vtt);;srt Files (*.srt)")
+            self.backend_load_caption(filename)
+        else:
+            QtWidgets.QMessageBox.warning(self, "Error", "Please load a video file first")
 
     def backend_load_caption(self, filename):
         if filename:
