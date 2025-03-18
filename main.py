@@ -88,7 +88,7 @@ class Player(QtWidgets.QMainWindow):
         self.cur_caption_seq = set()
         # get size of mdx
         self.translator = OfflineTranslator(dict_path, lemma_path)
-        self.translator2 = OnlineTranslator(url="http://211.159.170.219:3000/translate")
+        self.translator2 = OnlineTranslator(url="http://211.159.170.219:3000/api/translate")
 
         self.create_ui()
 
