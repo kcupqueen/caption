@@ -17,9 +17,11 @@
 - [ ] feature 增加配置文件
 
 ## user experience
-- [ ] feature 空格键暂停、播放
-- [ ] feature 点击屏幕暂停、播放
+- [x] feature 空格键暂停、播放
+- [x] feature 点击屏幕暂停、播放
 - [ ] feature 加载字幕时的loading
+- [ ] feature 调用API时的loading
+
 ## bug
 - [x] 提取字幕散乱
 - [x] 选词窗口展示位置错误

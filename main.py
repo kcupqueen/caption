@@ -64,6 +64,7 @@ class Player(QtWidgets.QMainWindow):
 
     def __init__(self, master=None):
         QtWidgets.QMainWindow.__init__(self, master)
+
         self.caption_type = CaptionType.NORMAL
         self.play_triggered_times = 0
         self.sub_file_num = 0
@@ -109,7 +110,9 @@ class Player(QtWidgets.QMainWindow):
         
         # Hide any floating translation window if visible
         if hasattr(self, 'floatingWindow') and self.floatingWindow.isVisible():
-            self.floatingWindow.hide()
+            QtCore.QMetaObject.invokeMethod(self.floatingWindow, 
+                                          "hide",
+                                          QtCore.Qt.ConnectionType.QueuedConnection)
 
     def clear_player_cache(self):
         self.play_triggered_times = 0
@@ -142,7 +145,8 @@ class Player(QtWidgets.QMainWindow):
         self.videoframe.setAutoFillBackground(True)
         # set size (default size)
         self.videoframe.setMinimumSize(640, 480)
-
+        self.videoframe.mousePressEvent = self.onclick_videoframe
+        # Set cursor to hand when hovering over video frame
         self.positionslider = ClickableSlider(QtCore.Qt.Horizontal, self)
         self.positionslider.setToolTip("Position")
         self.positionslider.setMaximum(1000)
@@ -153,6 +157,10 @@ class Player(QtWidgets.QMainWindow):
 
         space_shortcut = QShortcut(QKeySequence("Space"), self)
         space_shortcut.activated.connect(self.on_space_pressed)
+        left_shortcut = QShortcut(QKeySequence("Left"), self)
+        left_shortcut.activated.connect(self.on_go_back)
+        right_shortcut = QShortcut(QKeySequence("Right"), self)
+        right_shortcut.activated.connect(self.on_go_forward)
 
         self.hbuttonbox.addWidget(self.playbutton)
         self.playbutton.clicked.connect(self.play_pause)
@@ -225,6 +233,25 @@ class Player(QtWidgets.QMainWindow):
 
         open_action.triggered.connect(self.open_file)
         close_action.triggered.connect(sys.exit)
+
+    def on_go_back(self):
+        print("go back")
+        back_t = 5000
+        current_time = self.mediaplayer.get_time()
+        if current_time > back_t:
+            self.mediaplayer.set_time(current_time - back_t)
+
+    def on_go_forward(self):
+        print("go forward")
+        forward_t = 5000
+        current_time = self.mediaplayer.get_time()
+        if current_time < self.mediaplayer.get_length() - forward_t:
+            self.mediaplayer.set_time(current_time + forward_t)
+
+
+    def onclick_videoframe(self, event):
+        self.play_pause()
+
 
     def on_space_pressed(self):
         print("Space pressed")
@@ -359,7 +386,10 @@ class Player(QtWidgets.QMainWindow):
             self.mediaplayer.play()
             self.playbutton.setText("Pause")
             self.is_paused = False
-            print("is playing?", self.mediaplayer.is_playing())
+            if self.mediaplayer.is_playing():
+                # hide all floating windows
+                if hasattr(self, 'floatingWindow') and self.floatingWindow.isVisible():
+                    self.floatingWindow.hide()
 
     def pause(self, action):
         if self.mediaplayer.is_playing():
