@@ -212,17 +212,23 @@ def get_captions_from_string(subtitle_content, content_format='srt'):
     """
     captions = []
     i = 0
+    temp_srt_path = None
+    temp_vtt_path = None
     
     try:
         # Convert SRT content to VTT if needed
         if content_format.lower() == 'srt':
             # Create a temporary file to use webvtt's conversion
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.srt', delete=False) as temp_srt:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.srt', delete=False, encoding='utf-8') as temp_srt:
                 temp_srt.write(subtitle_content)
                 temp_srt.flush()
+                temp_srt_path = temp_srt.name
                 
-            vtt_content = webvtt.from_srt(temp_srt.name).content
-            os.unlink(temp_srt.name)  # Clean up temp file
+            vtt_content = webvtt.from_srt(temp_srt_path).content
+            try:
+                os.unlink(temp_srt_path)  # Clean up temp file
+            except Exception as e:
+                print(f"Warning: Could not delete temporary SRT file: {str(e)}")
         elif content_format.lower() == 'vtt':
             vtt_content = subtitle_content
         else:
@@ -230,23 +236,34 @@ def get_captions_from_string(subtitle_content, content_format='srt'):
             return captions
 
         # Parse VTT content
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.vtt', delete=False) as temp_vtt:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.vtt', delete=False, encoding='utf-8') as temp_vtt:
             temp_vtt.write(vtt_content)
             temp_vtt.flush()
+            temp_vtt_path = temp_vtt.name
             
-            # Read the VTT content
-            for caption in webvtt.read(temp_vtt.name):
-                x = {'caption': caption, 'seq': i}
-                i += 1
-                x['caption'].start_in_milliseconds = time_to_milliseconds(caption.start)
-                x['caption'].end_in_milliseconds = time_to_milliseconds(caption.end)
-                captions.append(x)
-            
-            os.unlink(temp_vtt.name)  # Clean up temp file
+        # Read the VTT content
+        for caption in webvtt.read(temp_vtt_path):
+            x = {'caption': caption, 'seq': i}
+            i += 1
+            x['caption'].start_in_milliseconds = time_to_milliseconds(caption.start)
+            x['caption'].end_in_milliseconds = time_to_milliseconds(caption.end)
+            captions.append(x)
+        
+        try:
+            os.unlink(temp_vtt_path)  # Clean up temp file
+        except Exception as e:
+            print(f"Warning: Could not delete temporary VTT file: {str(e)}")
             
         return captions
         
     except Exception as e:
         print(f"Error parsing subtitle content: {str(e)}")
+        # Attempt to clean up any temporary files that might still exist
+        for temp_file in [f for f in [temp_srt_path, temp_vtt_path] if f]:
+            try:
+                if os.path.exists(temp_file):
+                    os.unlink(temp_file)
+            except Exception:
+                pass  # Ignore cleanup errors
         return captions
 
