@@ -38,6 +38,7 @@ from caption import get_captions, find_caption, get_template, lookup_caption, Lo
     get_captions_from_string, CaptionType, find_captions
 from caption.extract import get_subtitle_tracks, extract_all, get_video_dimensions, get_video_frame_as_base64, \
     extract_all_as_strings
+from caption.online_trans import OnlineTranslator
 from caption.stardict import OfflineTranslator
 from widget.player_controller import resize_player
 from widget.player_event import mouse_press_event
@@ -87,6 +88,7 @@ class Player(QtWidgets.QMainWindow):
         self.cur_caption_seq = set()
         # get size of mdx
         self.translator = OfflineTranslator(dict_path, lemma_path)
+        self.translator2 = OnlineTranslator(url="http://211.159.170.219:3000/translate")
 
         self.create_ui()
 
