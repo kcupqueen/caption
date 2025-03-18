@@ -177,7 +177,7 @@ class Player(QtWidgets.QMainWindow):
         self.caption_layout.addWidget(self.caption)
 
         # caption word lookup
-        self.floatingWindow = FloatingTranslation(self)
+        self.floatingWindow = FloatingTranslation(self, self.translator2.lookup)
 
         self.floatingWindow.windowClosed.connect(self.play_pause)
 
@@ -327,6 +327,8 @@ class Player(QtWidgets.QMainWindow):
         pos = event['pos']
         state = event['state']
         text = event['text']
+        lookup_type = event.get('lookup_type', LookUpType.WORD)
+        print("display_translation, type is", lookup_type)
         if text:
             self.floatingWindow.set_translation(text, pos, state)
 

@@ -29,13 +29,11 @@ class SentenceTranslation:
         return f"""
         <html>
             <body>
-                <h2>Translation</h2>
-                <p><strong>Translated Text:</strong> {self.translated_text}</p>
+                <h3>{self.translated_text}</h3>
                 <h3>Key Points</h3>
                 <ul>
                     {key_points_html}
                 </ul>
-                <p><strong>Target Language:</strong> {self.target_language}</p>
             </body>
         </html>
         """
@@ -58,7 +56,9 @@ class OnlineTranslator:
         # todo lookup, add timeout, handle exception
         ret_json = self.translate_text(text)
         sentence_translation = SentenceTranslation.from_json(ret_json)
-        return sentence_translation
+        if sentence_translation:
+            return sentence_translation.to_html()
+        return "translation failed"
 
 
     def translate_text(self, text: str, target_lang: str = 'zh') -> dict:

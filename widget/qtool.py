@@ -4,6 +4,41 @@ from PyQt5.QtGui import QTextCursor, QPalette, QColor, QIcon, QPainter, QPolygon
 from PyQt5.QtCore import Qt, QPoint, QEvent, pyqtSignal, QSize, QDir, QUrl
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 
+from caption import LookupState
+
+html_content = """
+        <html>
+        <head>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    margin: 0;
+                    padding: 0;
+                }}
+                .container {{
+                    padding: 10px;
+                }}
+                .text-preview {{
+                    background-color: #f5f5f5;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    padding: 10px;
+                    margin-bottom: 10px;
+                    max-height: 150px;
+                    overflow-y: auto;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h3>Translate this text?</h3>
+                <div class="text-preview">{}</div>
+            </div>
+        </body>
+        </html>
+        """
 
 class TriangleSizeGrip(QSizeGrip):
     def __init__(self, parent=None):
@@ -99,13 +134,14 @@ class FloatingTranslation(QMainWindow):
     windowClosed = pyqtSignal(dict)
     captionReady = pyqtSignal(dict)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, online_func=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         
         # Main widget and layout
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
+        self.online_func = online_func
         layout = QVBoxLayout(self.central_widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -195,26 +231,78 @@ class FloatingTranslation(QMainWindow):
             self.label.setZoomFactor(self.zoom_factor)
 
     def set_translation(self, text, pos, state):
-        if state == "loaded":
+
+        if state == LookupState.LOADED:
             self.label.setHtml(text)
+        elif state == LookupState.LOADING:
+            self.label.setHtml(text)
+        elif state == LookupState.CONFIRM:
+            self.display_confirm_window(text, pos)
         else:
-            print("not loaded")
-            self.label.setHtml(text)
+            pass
         new_pos = QPoint(pos.x(), pos.y() - self.height())
         self.move(new_pos)
-        print("FloatingTranslation show at pos:", pos)
         self.show()
         self.activateWindow()
 
+    def display_confirm_window(self, text, pos):
+        """Display a confirmation window asking if user wants to translate the text"""
+        # Set up HTML content with just the text preview
+
+        
+        # Update title bar
+        self.title_bar.title_label.setText("Confirm Translation")
+        
+        # Set the HTML content
+        self.label.setHtml(html_content.format(text))
+        
+        # Create confirm button if it doesn't exist
+        if not hasattr(self, 'confirm_button'):
+            self.confirm_button = QPushButton("Translate")
+            self.confirm_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #4CAF50;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                }
+                QPushButton:hover {
+                    background-color: #45a049;
+                }
+            """)
+            # Add button to the bottom layout
+            self.content_widget.layout().itemAt(1).layout().insertWidget(0, self.confirm_button)
+            # Connect button signal
+            self.confirm_button.clicked.connect(lambda: self.handle_translation_confirm(text, pos))
+        else:
+            self.confirm_button.show()
+        
+        # Hide save button during confirmation
+        self.save_button.hide()
+        
+        # Position the window
+        new_pos = QPoint(pos.x(), pos.y() - self.height())
+        self.move(new_pos)
+        
+        # Show the window
+        self.show()
+        self.activateWindow()
+    
+    def handle_translation_confirm(self, text, pos):
+        """Handle translation confirmation"""
+        print("mock translate:", text)
+        # Emit signal that caption is ready to be translated
+        ret = self.online_func(text)
+        self.captionReady.emit({"text": ret, "pos": pos, "state": LookupState.LOADED})
+        # Change title back
+        self.title_bar.title_label.setText("翻译")
+        # Hide confirm button and show save button
+        self.confirm_button.hide()
+        self.save_button.show()
+
     def save_translation(self):
         self.label.page().toHtml(lambda html: print("已收藏:", html))
-
-    # def eventFilter(self, obj, event):
-    #     if event.type() == QEvent.MouseButtonPress:
-    #         if not self.geometry().contains(event.globalPos()):
-    #             self.hide_window()  # Use the new hide_window method
-    #             return True
-    #     return super().eventFilter(obj, event)
 
 
 class TranslatorApp(QWidget):

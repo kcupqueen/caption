@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 
-from caption import LookUpType
+from caption import LookUpType, LookupState
 from widget.thread_pool import Worker
 
 
@@ -58,8 +58,8 @@ def handle_selection_changed(window, thread_pool):
             window.floatingWindow.captionReady.emit({
                 'text': result,
                 'pos': pos,
-                "state": "loaded"
-
+                "state": LookupState.LOADED,
+                "lookup_type": lookup_type,
             })
         # check if selected text is a single word
         if len(selected_text.split()) == 1:
@@ -71,20 +71,21 @@ def handle_selection_changed(window, thread_pool):
             window.floatingWindow.captionReady.emit({
                 'text': "loading...",
                 'pos': pos,
-                "state": "loading",
+                "state": LookupState.LOADING,
                 "lookup_type": lookup_type,
             })
 
             thread_pool.start(Worker(lookup_caption_task, selected_text, on_finished=on_result))
         elif lookup_type == LookUpType.SENTENCE:
+            print("sentence lookup", len(selected_text.split()), "words")
             window.pause("lookup")
             window.floatingWindow.captionReady.emit({
                 'text': selected_text,
-                'pos': None,
-                "state": "loaded",
+                'pos': pos,
+                "state": LookupState.CONFIRM,
                 "lookup_type": lookup_type,
             })
-            thread_pool.start(Worker(lookup_caption_task, selected_text, on_finished=on_result))
+            #thread_pool.start(Worker(lookup_caption_task, selected_text, on_finished=on_result))
 
 
 

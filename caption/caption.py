@@ -187,6 +187,12 @@ class LookUpType:
     WORD = 1
     SENTENCE = 2
 
+class LookupState:
+    LOADING = 1
+    LOADED = 2
+    ERROR = 3
+    CONFIRM = 4
+
 def lookup_caption(content, content_type):
     time.sleep(2)
     if content_type == LookUpType.WORD:
