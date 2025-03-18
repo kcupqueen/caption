@@ -30,10 +30,12 @@ import sys, time
 from pathlib import Path
 
 from PyQt5.QtCore import QTimer
-from PyQt5.QtGui import QMouseEvent
+from PyQt5.QtGui import QMouseEvent, QKeySequence
 
 from PyQt5 import QtWidgets, QtGui, QtCore
 import vlc
+from PyQt5.QtWidgets import QShortcut
+
 from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType, convert_srt_to_vtt, \
     get_captions_from_string, CaptionType, find_captions
 from caption.extract import get_subtitle_tracks, extract_all, get_video_dimensions, get_video_frame_as_base64, \
@@ -148,6 +150,10 @@ class Player(QtWidgets.QMainWindow):
         self.positionslider.sliderPressed.connect(self.set_position)
         self.hbuttonbox = QtWidgets.QHBoxLayout()
         self.playbutton = QtWidgets.QPushButton("Play")
+
+        space_shortcut = QShortcut(QKeySequence("Space"), self)
+        space_shortcut.activated.connect(self.on_space_pressed)
+
         self.hbuttonbox.addWidget(self.playbutton)
         self.playbutton.clicked.connect(self.play_pause)
 
@@ -219,6 +225,10 @@ class Player(QtWidgets.QMainWindow):
 
         open_action.triggered.connect(self.open_file)
         close_action.triggered.connect(sys.exit)
+
+    def on_space_pressed(self):
+        print("Space pressed")
+        self.play_pause()
 
     def mousePressEvent(self, event: QMouseEvent):
         mouse_press_event(self, event)

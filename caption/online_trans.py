@@ -52,13 +52,16 @@ class OnlineTranslator:
         pass
 
     def lookup(self, text):
-        print(f"Looking up {text} online...")
-        # todo lookup, add timeout, handle exception
-        ret_json = self.translate_text(text)
-        sentence_translation = SentenceTranslation.from_json(ret_json)
-        if sentence_translation:
-            return sentence_translation.to_html()
-        return "translation failed"
+        try:
+            print(f"Looking up {text} online...")
+            # todo lookup, add timeout, handle exception
+            ret_json = self.translate_text(text)
+            sentence_translation = SentenceTranslation.from_json(ret_json)
+            if sentence_translation:
+                return sentence_translation.to_html()
+            return "translation failed"
+        except Exception as e:
+            return f"Error: {e}"
 
 
     def translate_text(self, text: str, target_lang: str = 'zh') -> dict:
@@ -74,6 +77,6 @@ class OnlineTranslator:
         response = requests.post(self.url, json=payload, headers=headers)
 
         if response.status_code != 200:
-            raise Exception('Translation failed')
+            raise Exception('Translation failed, response code:', response.status_code)
 
         return response.json()
