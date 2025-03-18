@@ -40,7 +40,7 @@ from caption.extract import get_subtitle_tracks, extract_all, get_video_dimensio
     extract_all_as_strings
 from caption.online_trans import OnlineTranslator
 from caption.stardict import OfflineTranslator
-from widget.player_controller import resize_player
+from widget.player_controller import resize_player, handle_selection_changed
 from widget.player_event import mouse_press_event
 from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
@@ -571,34 +571,7 @@ class Player(QtWidgets.QMainWindow):
 
 
     def on_selection_changed(self, event):
-        cursor = self.caption.textCursor()
-        if cursor.hasSelection():
-            selected_text = cursor.selectedText()  # ✅ Get the selected text
-            if selected_text:
-                self.pause("lookup")
-                cursor_rect = self.caption.cursorRect(cursor)
-                pos = self.caption.mapToGlobal(cursor_rect.bottomRight())
-                self.floatingWindow.captionReady.emit({
-                    'text': "loading...",
-                    'pos': pos,
-                    "state": "loading"
-                })
-
-                def lookup_caption_task(text):
-                    return self.translator.query(text)
-
-                def on_result(result):
-                    # emit again
-                    self.floatingWindow.captionReady.emit({
-                        'text': result,
-                        'pos': pos,
-                        "state": "loaded"
-                    })
-
-
-                GLOBAL_THREAD_POOL.start(Worker(lookup_caption_task, selected_text, on_finished=on_result))
-                # 清理已完成的线程
-                self.translation_threads = [t for t in self.translation_threads if t.isRunning()]
+        handle_selection_changed(self, GLOBAL_THREAD_POOL)
 
 
 def main():

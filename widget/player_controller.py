@@ -1,5 +1,8 @@
 from PyQt5 import QtCore, QtWidgets
 
+from caption import LookUpType
+from widget.thread_pool import Worker
+
 
 def resize_player(w, ffmpeg_w, ffmpeg_h):
     if ffmpeg_w > 0 and ffmpeg_h > 0:
@@ -35,5 +38,53 @@ def resize_player(w, ffmpeg_w, ffmpeg_h):
         w.original_video_height = ffmpeg_h
 
         print(f"Resized window to match video dimensions: {new_width}x{new_height + controls_height}")
+
+
+def handle_selection_changed(window, thread_pool):
+    cursor = window.caption.textCursor()
+    if cursor.hasSelection():
+        cursor_rect = window.caption.cursorRect(cursor)
+        pos = window.caption.mapToGlobal(cursor_rect.bottomRight())
+
+        selected_text = cursor.selectedText()  # ✅ Get the selected text
+        if not selected_text:
+            return
+
+        def lookup_caption_task(text):
+            return window.translator.query(text)
+
+        def on_result(result):
+            # emit again
+            window.floatingWindow.captionReady.emit({
+                'text': result,
+                'pos': pos,
+                "state": "loaded"
+
+            })
+        # check if selected text is a single word
+        if len(selected_text.split()) == 1:
+            lookup_type = LookUpType.WORD
+        else:
+            lookup_type = LookUpType.SENTENCE
+        if lookup_type == LookUpType.WORD:
+            window.pause("lookup")
+            window.floatingWindow.captionReady.emit({
+                'text': "loading...",
+                'pos': pos,
+                "state": "loading",
+                "lookup_type": lookup_type,
+            })
+
+            thread_pool.start(Worker(lookup_caption_task, selected_text, on_finished=on_result))
+        elif lookup_type == LookUpType.SENTENCE:
+            window.pause("lookup")
+            window.floatingWindow.captionReady.emit({
+                'text': selected_text,
+                'pos': None,
+                "state": "loaded",
+                "lookup_type": lookup_type,
+            })
+            thread_pool.start(Worker(lookup_caption_task, selected_text, on_finished=on_result))
+
 
 
