@@ -240,6 +240,7 @@ class Player(QtWidgets.QMainWindow):
         current_time = self.mediaplayer.get_time()
         if current_time > back_t:
             self.mediaplayer.set_time(current_time - back_t)
+            self.cur_caption_seq.clear()
 
     def on_go_forward(self):
         print("go forward")
