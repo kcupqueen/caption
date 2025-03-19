@@ -238,8 +238,7 @@ def get_captions_from_string(subtitle_content, content_format='srt'):
         # Convert SRT content to VTT if needed
         if content_format.lower() == 'srt':
             captions = parse_srt_string(subtitle_content)
-            for c in captions:
-                print(c['caption'].start_in_milliseconds, c['caption'].end_in_milliseconds, c['caption'].text)
+            return captions
         elif content_format.lower() == 'vtt':
             pass
         else:
