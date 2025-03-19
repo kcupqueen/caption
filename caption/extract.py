@@ -1,4 +1,6 @@
 import os
+import subprocess
+import sys
 
 import ffmpeg
 import base64
@@ -140,20 +142,42 @@ GLOBAL_EMBEDDING_RAW_CAPTION = {
 
 def extract_subtitle_as_string(video_path, track_index=0):
     """
-    Extract subtitle track as string using ffmpeg
+    Extract subtitle track as string using ffmpeg without showing a black window.
+
     :param video_path: Input video file path
     :param track_index: Subtitle track index to extract
     :return: Subtitle content as string
     """
     try:
         # Use pipe output to get subtitle content directly
-        out, _ = (
-            ffmpeg
-            .input(video_path)
+        ffmpeg_cmd = (
+            ffmpeg.input(video_path)
             .output('pipe:', map=f'0:s:{track_index}', format='srt')
-            .run(capture_stdout=True, capture_stderr=True)
+            .compile()
         )
+
+        # Platform-specific settings
+        startupinfo = None
+        creationflags = 0
+
+        if sys.platform == "win32":  # Windows: Hide black console window
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            creationflags = subprocess.CREATE_NO_WINDOW
+        else:  # macOS & Linux: Redirect output to prevent terminal popups
+            creationflags = 0
+
+        process = subprocess.Popen(
+            ffmpeg_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            startupinfo=startupinfo,
+            creationflags=creationflags
+        )
+
+        out, _ = process.communicate()
         return out.decode('utf-8')
+
     except ffmpeg.Error as e:
         print("Error extracting subtitle:", e)
         return None
