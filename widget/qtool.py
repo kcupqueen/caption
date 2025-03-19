@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QApplication, QTextEdit, QPushButton, QVBoxLayout, Q
 from PyQt5.QtGui import QTextCursor, QPalette, QColor, QIcon, QPainter, QPolygon
 from PyQt5.QtCore import Qt, QPoint, QEvent, pyqtSignal, QSize, QDir, QUrl
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
+from functools import partial
 
 from caption import LookupState
 
@@ -273,10 +274,17 @@ class FloatingTranslation(QMainWindow):
             """)
             # Add button to the bottom layout
             self.content_widget.layout().itemAt(1).layout().insertWidget(0, self.confirm_button)
-            # Connect button signal
-            self.confirm_button.clicked.connect(lambda: self.handle_translation_confirm(text, pos))
-        else:
-            self.confirm_button.show()
+
+        # 先断开旧的连接，防止多次点击绑定多个函数
+        try:
+            self.confirm_button.clicked.disconnect()
+        except TypeError:
+            pass  # 可能没有绑定过，不影响
+            # 重新绑定，每次调用都用最新的 text 和 pos
+        # print("connect confirm_button")
+        self.confirm_button.clicked.connect(partial(self.handle_translation_confirm, text, pos))
+
+        self.confirm_button.show()
         
         # Hide save button during confirmation
         self.save_button.hide()
@@ -291,7 +299,7 @@ class FloatingTranslation(QMainWindow):
     
     def handle_translation_confirm(self, text, pos):
         """Handle translation confirmation"""
-        print("mock translate:", text)
+        # print("real translate:", text)
         # Emit signal that caption is ready to be translated
         ret = self.online_func(text)
         self.captionReady.emit({"text": ret, "pos": pos, "state": LookupState.LOADED})
