@@ -21,6 +21,7 @@
 - [x] feature 点击屏幕暂停、播放
 - [ ] feature 加载字幕时的loading
 - [ ] feature 调用API时的loading
+- [ ] feature 播放当前time
 
 ## bug
 - [x] 提取字幕散乱
@@ -28,7 +29,7 @@
 - [x] 选词窗口关闭后无法自动播放
 - [x] 加载第二个崩溃
 - [x] 无法缩小窗口
-- [ ] 字幕某一句丢失
+- [x] 字幕某一句丢失
 - [ ] window 点屏幕无反应
 ## installer
 - [ ] feature 安装包
