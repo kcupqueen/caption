@@ -87,7 +87,7 @@ def extract_all(video_path):
             langs.append(track[2])
 
         except Exception as e:
-            print(f"提取字幕轨道 {i} ({track}) 时出错:", e)
+            print(f"提取字幕轨道  ({track}) 时出错:", e)
         finally:
             pass
 

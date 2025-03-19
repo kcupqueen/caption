@@ -2,6 +2,7 @@ import time
 import os
 import webvtt
 import tempfile
+import pysrt
 
 def convert_srt_to_vtt(srt_file, delete_srt=False):
     """Convert SRT file to VTT format"""
@@ -23,6 +24,29 @@ def convert_srt_to_vtt(srt_file, delete_srt=False):
 class CaptionType:
     YOUTUBE_AUTO_GENERATED = 1
     NORMAL = 2
+
+def parse_srt_string(srt_string):
+    captions = []
+    i = 0
+    
+    try:
+        subs = pysrt.from_string(srt_string)
+        for sub in subs:
+            caption = webvtt.Caption(
+                start=f"{sub.start.hours:02d}:{sub.start.minutes:02d}:{sub.start.seconds:02d}.{sub.start.milliseconds:03d}",
+                end=f"{sub.end.hours:02d}:{sub.end.minutes:02d}:{sub.end.seconds:02d}.{sub.end.milliseconds:03d}",
+                text=sub.text
+            )
+            x = {'caption': caption, 'seq': i}
+            i += 1
+            x['caption'].start_in_milliseconds = time_to_milliseconds(caption.start)
+            x['caption'].end_in_milliseconds = time_to_milliseconds(caption.end)
+            captions.append(x)
+        
+        return captions
+    except Exception as e:
+        print(f"Error parsing SRT string: {str(e)}")
+        return captions
 
 def get_captions(subtitle_file):
     captions = []
@@ -210,60 +234,30 @@ def get_captions_from_string(subtitle_content, content_format='srt'):
     :param content_format: Format of the subtitle content ('srt' or 'vtt')
     :return: List of caption objects
     """
-    captions = []
-    i = 0
-    temp_srt_path = None
-    temp_vtt_path = None
-    
     try:
         # Convert SRT content to VTT if needed
         if content_format.lower() == 'srt':
-            # Create a temporary file to use webvtt's conversion
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.srt', delete=False, encoding='utf-8') as temp_srt:
-                temp_srt.write(subtitle_content)
-                temp_srt.flush()
-                temp_srt_path = temp_srt.name
-                
-            vtt_content = webvtt.from_srt(temp_srt_path).content
-            try:
-                os.unlink(temp_srt_path)  # Clean up temp file
-            except Exception as e:
-                print(f"Warning: Could not delete temporary SRT file: {str(e)}")
+            captions = parse_srt_string(subtitle_content)
+            for c in captions:
+                print(c['caption'].start_in_milliseconds, c['caption'].end_in_milliseconds, c['caption'].text)
         elif content_format.lower() == 'vtt':
-            vtt_content = subtitle_content
+            pass
         else:
             print("Unsupported subtitle format. Please use VTT or SRT content")
-            return captions
+            return []
 
-        # Parse VTT content
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.vtt', delete=False, encoding='utf-8') as temp_vtt:
-            temp_vtt.write(vtt_content)
-            temp_vtt.flush()
-            temp_vtt_path = temp_vtt.name
-            
-        # Read the VTT content
-        for caption in webvtt.read(temp_vtt_path):
+        captions = []
+        i = 0
+        for caption in webvtt.from_string(subtitle_content):
             x = {'caption': caption, 'seq': i}
             i += 1
             x['caption'].start_in_milliseconds = time_to_milliseconds(caption.start)
             x['caption'].end_in_milliseconds = time_to_milliseconds(caption.end)
             captions.append(x)
-        
-        try:
-            os.unlink(temp_vtt_path)  # Clean up temp file
-        except Exception as e:
-            print(f"Warning: Could not delete temporary VTT file: {str(e)}")
-            
-        return captions
+
         
     except Exception as e:
         print(f"Error parsing subtitle content: {str(e)}")
         # Attempt to clean up any temporary files that might still exist
-        for temp_file in [f for f in [temp_srt_path, temp_vtt_path] if f]:
-            try:
-                if os.path.exists(temp_file):
-                    os.unlink(temp_file)
-            except Exception:
-                pass  # Ignore cleanup errors
-        return captions
+        return []
 
