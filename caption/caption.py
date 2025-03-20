@@ -95,7 +95,7 @@ def find_caption(currentTime, captionList, cur_seq):
     start = 0
     if seq != -1:
         start = seq
-    print("start from seq:", start)
+    # print("start from seq:", start)
     for i in range(start, len(captionList)):
         if captionList[i]['caption'].end_in_milliseconds > currentTime:
             seq = i

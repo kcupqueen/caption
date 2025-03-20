@@ -75,6 +75,7 @@ class Player(QtWidgets.QMainWindow):
         self.audio_tracks = []
         self.translation_threads = []
         self.setWindowTitle("CompreVids️")
+        self.ignore_user = False
 
         # Create a basic vlc instance
         self.instance = vlc.Instance("--file-caching=5000", "--network-caching=5000", "--no-sub-autodetect-file", "--no-spu")
@@ -377,7 +378,10 @@ class Player(QtWidgets.QMainWindow):
         """Toggle play/pause status
         """
         #self.mediaplayer.video_set_spu(-1)
-        print('play_pause', self.mediaplayer.is_playing())
+        if self.ignore_user:
+            print("User input ignored")
+            return
+
         if self.mediaplayer.is_playing():
             self.mediaplayer.pause()
             self.playbutton.setText("Play")
@@ -452,6 +456,7 @@ class Player(QtWidgets.QMainWindow):
             self.show_subtitle_selector(options, filename)
 
 
+
     def show_subtitle_selector(self, options, filename):
         # width is 1/4 of the screen width
         # height is 1/3 of the screen height
@@ -481,6 +486,7 @@ class Player(QtWidgets.QMainWindow):
         if ext == ".mkv":
             # Get video information
             def ffmpeg_parse():
+                self.ignore_user = True
                 ffmpeg_tracks = get_subtitle_tracks(filename[0])
                 ffmpeg_w, ffmpeg_h = get_video_dimensions(filename[0])
                 print("result is", ffmpeg_tracks, ffmpeg_w, ffmpeg_h)
@@ -520,6 +526,8 @@ class Player(QtWidgets.QMainWindow):
         print("selected option", selected_option)
         def extract_now():
             print("start extract subtitle")
+            # mock time consuming task
+            time.sleep(10)
             ret = []
             subtitle_content = extract_subtitle_as_string(filename, track_index=index)
             if subtitle_content:
@@ -532,6 +540,8 @@ class Player(QtWidgets.QMainWindow):
                 html = get_template("welcome", f"加载第{index}条内置字幕, 共{len(result)}条")
                 QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
                                                 QtCore.Q_ARG(str, html))
+                self.ignore_user = False
+
         # put in thread pool
         GLOBAL_THREAD_POOL.start(Worker(extract_now, on_finished=on_finished))
 
