@@ -429,7 +429,7 @@ class Player(QtWidgets.QMainWindow):
         self.loading_timer.timeout.connect(update_loading_text)
         self.loading_timer.start(500)  # Update every 500ms
 
-    def unlock_screen(self, result=None):
+    def trigger_selector(self, result=None):
         """Unlock screen after loading is complete"""
         # Enable play button and clear loading state
         options = []
@@ -479,7 +479,6 @@ class Player(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.warning(self, "Error", "Unsupported file format")
             return
         if ext == ".mkv":
-            self.lock_screen()
             # Get video information
             def ffmpeg_parse():
                 ffmpeg_tracks = get_subtitle_tracks(filename[0])
@@ -488,7 +487,7 @@ class Player(QtWidgets.QMainWindow):
                 return ffmpeg_tracks, ffmpeg_w, ffmpeg_h, filename[0]  # Return as tuple
                 
             # Create worker and connect result
-            GLOBAL_THREAD_POOL.start(Worker(ffmpeg_parse, on_finished=self.unlock_screen))
+            GLOBAL_THREAD_POOL.start(Worker(ffmpeg_parse, on_finished=self.trigger_selector))
 
         # Continue with media loading...
         self.media = self.instance.media_new(filename[0])
