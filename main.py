@@ -222,7 +222,7 @@ class Player(QtWidgets.QMainWindow):
         file_menu.addAction(open_action)
 
         # Add actions to caption menu
-        caption_action = QtWidgets.QAction("Load Caption", self)
+        caption_action = QtWidgets.QAction("加载外挂字幕", self)
         caption_menu.addAction(caption_action)
         # Connect the caption action to a method
         caption_action.triggered.connect(self.load_caption)
@@ -520,7 +520,7 @@ class Player(QtWidgets.QMainWindow):
                 ffmpeg_tracks = get_subtitle_tracks(filename[0])
                 ffmpeg_w, ffmpeg_h = get_video_dimensions(filename[0])
                 print("result is", ffmpeg_tracks, ffmpeg_w, ffmpeg_h)
-                return (ffmpeg_tracks, ffmpeg_w, ffmpeg_h, filename[0])  # Return as tuple
+                return ffmpeg_tracks, ffmpeg_w, ffmpeg_h, filename[0]  # Return as tuple
                 
             # Create worker and connect result
             GLOBAL_THREAD_POOL.start(Worker(ffmpeg_parse, on_finished=self.unlock_screen))
@@ -547,25 +547,6 @@ class Player(QtWidgets.QMainWindow):
         elif platform.system() == "Darwin":  # for MacOS
             self.mediaplayer.set_nsobject(int(self.videoframe.winId()))
 
-        def parse_caption_files():
-            self.embed_caption_dict.clear()
-            subtitle_strs, langs = extract_all_as_strings(filename[0])
-            # tracks only generated from langs
-            self.subtitle_tracks = list(zip(range(len(langs)), langs))
-            if len(subtitle_strs) > 0:
-                en_index = []
-                for i, f in enumerate(subtitle_strs):
-                    if langs[i] == "eng" or langs[i] == "en" or langs[i] == "English" or langs[i] == "English (US)":
-                        en_index.append(i)
-                        print("find ", langs[i], "allLen", len(subtitle_strs[i]))
-                    self.embed_caption_dict[langs[i]] = subtitle_strs[i]
-
-                if len(en_index) > 0:
-                    self.backend_load_caption_from_str(subtitle_strs[en_index[0]])
-            print("self.embed_caption_dict keys", self.embed_caption_dict.keys())
-
-        # resize_player(self, ffmpeg_w, ffmpeg_h)
-        #self.play_pause()
 
     def on_subtitle_selected(self, selected_option):
         filename = selected_option.get('filename')
