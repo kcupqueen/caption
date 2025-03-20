@@ -114,10 +114,12 @@ class Player(QtWidgets.QMainWindow):
             QtCore.QMetaObject.invokeMethod(self.floatingWindow, 
                                           "hide",
                                           QtCore.Qt.ConnectionType.QueuedConnection)
-        # play 0.1 just for cover image
+        
+        # Play briefly to show cover then pause
         self.mediaplayer.play()
-        self.mediaplayer.set_time(100)
-        self.mediaplayer.pause()
+        
+        # Create a QTimer to pause after 100ms
+        QtCore.QTimer.singleShot(100, lambda: self.mediaplayer.pause())
 
     def clear_player_cache(self):
         self.play_triggered_times = 0
@@ -411,36 +413,6 @@ class Player(QtWidgets.QMainWindow):
         self.mediaplayer.stop()
         self.playbutton.setText("Play")
 
-    def set_cover_image(self, base64_image):
-        """Set a cover image on the video frame before playback starts"""
-        if not base64_image:
-            return
-
-        # Create a QPixmap from the base64 image data
-        pixmap = QtGui.QPixmap()
-        pixmap.loadFromData(QtCore.QByteArray.fromBase64(base64_image.encode()))
-
-        # Scale the pixmap to fit the video frame while maintaining aspect ratio
-        scaled_pixmap = pixmap.scaled(
-            self.videoframe.size(),
-            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-            QtCore.Qt.TransformationMode.SmoothTransformation
-        )
-
-        # Create a label to display the image
-        self.cover_label = QtWidgets.QLabel(self.videoframe)
-        self.cover_label.setPixmap(scaled_pixmap)
-        self.cover_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.cover_label.setStyleSheet("background-color: black;")
-        self.cover_label.resize(self.videoframe.size())
-        self.cover_label.show()
-
-        # Connect to the playing event to hide the cover
-        event_manager = self.mediaplayer.event_manager()
-        event_manager.event_attach(vlc.EventType.MediaPlayerPlaying,
-                                   lambda e: QtCore.QMetaObject.invokeMethod(self,
-                                                                             "hide_cover",
-                                                                             QtCore.Qt.ConnectionType.QueuedConnection))
 
     @QtCore.pyqtSlot()
     def hide_cover(self):
