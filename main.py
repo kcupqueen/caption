@@ -114,12 +114,7 @@ class Player(QtWidgets.QMainWindow):
             QtCore.QMetaObject.invokeMethod(self.floatingWindow, 
                                           "hide",
                                           QtCore.Qt.ConnectionType.QueuedConnection)
-        
-        # Play briefly to show cover then pause
-        self.mediaplayer.play()
-        
-        # Create a QTimer to pause after 100ms
-        QtCore.QTimer.singleShot(100, lambda: self.mediaplayer.pause())
+
 
     def clear_player_cache(self):
         self.play_triggered_times = 0
@@ -382,20 +377,22 @@ class Player(QtWidgets.QMainWindow):
         """Toggle play/pause status
         """
         #self.mediaplayer.video_set_spu(-1)
-        print('play_pause')
+        print('play_pause', self.mediaplayer.is_playing())
         if self.mediaplayer.is_playing():
             self.mediaplayer.pause()
             self.playbutton.setText("Play")
             self.is_paused = True
         else:
             if self.mediaplayer.play() == -1:
-                # self.open_file()
+                print("Error: Unable to play")
                 return
 
             self.mediaplayer.play()
             self.playbutton.setText("Pause")
             self.is_paused = False
+            print("play triggered 1")
             if self.mediaplayer.is_playing():
+                print("play triggered 2")
                 # hide all floating windows
                 if hasattr(self, 'floatingWindow') and self.floatingWindow.isVisible():
                     self.floatingWindow.hide()
@@ -413,14 +410,6 @@ class Player(QtWidgets.QMainWindow):
         self.mediaplayer.stop()
         self.playbutton.setText("Play")
 
-
-    @QtCore.pyqtSlot()
-    def hide_cover(self):
-        """Hide and remove the cover image when playback starts"""
-        if hasattr(self, 'cover_label'):
-            self.cover_label.hide()
-            self.cover_label.deleteLater()
-            delattr(self, 'cover_label')
 
     def lock_screen(self):
         """Lock screen while loading, showing loading indicators"""
