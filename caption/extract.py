@@ -50,6 +50,42 @@ def get_subtitle_tracks(video_path):
 
     return subtitle_tracks
 
+def get_subtitle_tracks_v2(video_path):
+    """
+    Get subtitle tracks from video file using mkvinfo
+    Returns: list of dicts with track info {index, language}
+    """
+    import subprocess
+    
+    try:
+        # Run mkvinfo command
+        result = subprocess.run(['mkvinfo', video_path], capture_output=True, text=True)
+        
+        tracks = []
+        current_items = {}
+        for line in result.stdout.split('\n'):
+            line = line.strip()
+            if line.startswith("| + Track"):
+                if current_items.get('index') and current_items.get('type', '') == 'subtitles':
+                    if current_items.get('language') is None:
+                        current_items['language'] = 'eng'
+                    tracks.append(current_items)
+
+                current_items = {}
+            else:
+                if line.startswith("|  + Track number: "):
+                    # Track number: 1 (track ID for mkvmerge & mkvextract: 0)
+                    # use regext to get 1 and 0
+                    index0 = int(line.split(":")[1].split("(")[0].strip())
+                    index1 = int(line.split(":")[2].split(")")[0].strip())
+                    current_items['index'] = (index0, index1)
+                elif line.startswith("|  + Language:"):
+                    current_items['language'] = line.split(":")[1].strip()
+                elif line.startswith("|  + Track type:"):
+                    current_items['type'] = line.split(":")[1].strip()
+        return tracks
+    except subprocess.CalledProcessError:
+        return []
 
 def extract_subtitles(video_path, output_srt="output.srt", track_index=0):
     """
@@ -200,3 +236,9 @@ def extract_all_as_strings(video_path):
             print(f"Error extracting subtitle track {track}:", e)
 
     return subtitles, langs
+
+if __name__ == "__main__":
+    video_path = "/home/ssx/code/youtube/test5.mkv"
+    tracks = get_subtitle_tracks_v2(video_path)
+    for track in tracks:
+        print(track)

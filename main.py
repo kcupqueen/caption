@@ -73,7 +73,7 @@ class Player(QtWidgets.QMainWindow):
         self.embed_caption_dict = {}
         self.audio_tracks = []
         self.translation_threads = []
-        self.setWindowTitle("SwordPlayer🗡️")
+        self.setWindowTitle("CompreVids️")
 
         # Create a basic vlc instance
         self.instance = vlc.Instance("--file-caching=5000", "--network-caching=5000", "--no-sub-autodetect-file", "--no-spu")
@@ -445,6 +445,7 @@ class Player(QtWidgets.QMainWindow):
             self.cover_label.deleteLater()
             delattr(self, 'cover_label')
 
+
     def open_file(self):
         """Open a media file in a MediaPlayer"""
         # Pause any currently playing media first
@@ -458,7 +459,6 @@ class Player(QtWidgets.QMainWindow):
         filename = QtWidgets.QFileDialog.getOpenFileName(self, dialog_txt, os.path.expanduser('~'))
         if not filename or not filename[0]:
             return
-
         # Get video information
         ffmpeg_tracks = get_subtitle_tracks(filename[0])
         # print(ffmpeg_tracks)
