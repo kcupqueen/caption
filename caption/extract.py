@@ -39,15 +39,11 @@ def get_subtitle_tracks(video_path):
     ]
 
     for sub_index, stream in enumerate(subtitle_streams):
-        track_index = stream['index']  # FFmpeg 内部的索引（所有流中的索引）
+        # track_index = stream['index']  # FFmpeg 内部的索引（所有流中的索引）
         codec_name = stream.get('codec_name', 'unknown')
         language = stream['tags'].get('language', 'unknown') if 'tags' in stream else 'unknown'
 
-        if language in lang_dict:
-            print(
-                f"sub_index={sub_index}, track_index={track_index}, codec_name={codec_name}, language={language}")
-            subtitle_tracks.append((sub_index, codec_name, language))  # 这里返回的是相对索引 sub_index
-
+        subtitle_tracks.append((sub_index, codec_name, language))  # 这里返回的是相对索引 sub_index
     return subtitle_tracks
 
 def get_subtitle_tracks_v2(video_path):

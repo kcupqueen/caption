@@ -21,11 +21,11 @@ class SubtitleOption:
 class OptionDialog(QDialog):
     option_selected = pyqtSignal(object)  # ✅ 定义一个信号，传递选择的字符串
 
-    def __init__(self, options, parent=None):
+    def __init__(self, options,w,h, fname, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("字幕选择器")
+        self.setWindowTitle("内置字幕选择器")
         self.selected_option = None  # 存储选择的值
-
+        self.fname = fname
         layout = QVBoxLayout()
 
         # 创建单选按钮
@@ -47,13 +47,19 @@ class OptionDialog(QDialog):
         self.confirm_button.clicked.connect(self.emit_selected_option)
         self.cancel_button.clicked.connect(self.reject)  # 直接关闭对话框
 
+        # size
+        self.resize(w,h)
+
     def emit_selected_option(self):
         """Get the selected index and emit the signal"""
         for index, radio in enumerate(self.radio_buttons):
             if radio.isChecked():
                 self.selected_option = index
-                self.option_selected.emit({"index": self.selected_option})  # ✅ Send signal
-                print("emit", self.selected_option)
+                obj = {"index": self.selected_option,
+                                           "filename": self.fname,
+                                           }
+                self.option_selected.emit(obj)  # ✅ Send signal
+                print("emit", obj)
                 self.accept()  # Close the dialog
                 return
         print("No option selected!")  # Handle the case where no option is selected

@@ -39,13 +39,14 @@ from PyQt5.QtWidgets import QShortcut
 from caption import get_captions, find_caption, get_template, lookup_caption, LookUpType, convert_srt_to_vtt, \
     get_captions_from_string, CaptionType, find_captions
 from caption.extract import get_subtitle_tracks, extract_all, get_video_dimensions, get_video_frame_as_base64, \
-    extract_all_as_strings
+    extract_all_as_strings, extract_subtitle_as_string
 from caption.online_trans import OnlineTranslator
 from caption.stardict import OfflineTranslator
 from widget.player_controller import resize_player, handle_selection_changed
 from widget.player_event import mouse_press_event
 from widget.qtool import FloatingTranslation
 from widget.slider import VideoSlider, ClickableSlider
+from widget.subtitle_dialog import OptionDialog
 
 from widget.thread import QtThread
 from widget.thread_pool import GLOBAL_THREAD_POOL, Worker
@@ -445,6 +446,55 @@ class Player(QtWidgets.QMainWindow):
             self.cover_label.deleteLater()
             delattr(self, 'cover_label')
 
+    def lock_screen(self):
+        """Lock screen while loading, showing loading indicators"""
+        # Disable play button and show loading state
+        self.playbutton.hide()
+        
+        # Start a timer to show animated loading dots in caption
+        self.loading_timer = QTimer()
+        self.loading_dots = 0
+        
+        def update_loading_text():
+            dots = "." * ((self.loading_dots % 3) + 1)
+            loading_html = get_template("welcome", f"Loading{dots}")
+            self.caption.setHtml(loading_html)
+            self.loading_dots += 1
+        
+        self.loading_timer.timeout.connect(update_loading_text)
+        self.loading_timer.start(500)  # Update every 500ms
+
+    def unlock_screen(self, result=None):
+        """Unlock screen after loading is complete"""
+        # Enable play button and clear loading state
+        options = []
+        filename = ""
+        if result:
+            ffmpeg_tracks, ffmpeg_w, ffmpeg_h, filename = result
+            self.subtitle_tracks = ffmpeg_tracks
+            resize_player(self, ffmpeg_w, ffmpeg_h)
+            self.update_tracks_menu()
+            options = [f"{track[1]} {track[0]} {track[2]}" for track in ffmpeg_tracks]
+
+        self.playbutton.show()
+        # Stop the loading timer
+        if hasattr(self, 'loading_timer'):
+            self.loading_timer.stop()
+            delattr(self, 'loading_timer')
+            delattr(self, 'loading_dots')
+            self.caption.clear()
+        if len(options) > 0:
+            self.show_subtitle_selector(options, filename)
+
+
+    def show_subtitle_selector(self, options, filename):
+        # width is 1/4 of the screen width
+        # height is 1/3 of the screen height
+        w = self.width() // 4
+        h = self.height() // 3
+        dialog = OptionDialog(options, w, h, filename, self)
+        dialog.option_selected.connect(self.on_subtitle_selected)
+        dialog.exec_()
 
     def open_file(self):
         """Open a media file in a MediaPlayer"""
@@ -459,11 +509,21 @@ class Player(QtWidgets.QMainWindow):
         filename = QtWidgets.QFileDialog.getOpenFileName(self, dialog_txt, os.path.expanduser('~'))
         if not filename or not filename[0]:
             return
-        # Get video information
-        ffmpeg_tracks = get_subtitle_tracks(filename[0])
-        # print(ffmpeg_tracks)
-        self.caption.setText("load video {} successfully, subtitle tracks: {}".format(filename, ffmpeg_tracks))
-        ffmpeg_w, ffmpeg_h = get_video_dimensions(filename[0])
+        ext = os.path.splitext(filename[0])[1].lower()
+        if ext not in ['.mp4', '.mkv', '.avi', '.webm', '.flv', '.mov', '.wmv', '.mpg', '.mpeg', '.m4v']:
+            QtWidgets.QMessageBox.warning(self, "Error", "Unsupported file format")
+            return
+        if ext == ".mkv":
+            self.lock_screen()
+            # Get video information
+            def ffmpeg_parse():
+                ffmpeg_tracks = get_subtitle_tracks(filename[0])
+                ffmpeg_w, ffmpeg_h = get_video_dimensions(filename[0])
+                print("result is", ffmpeg_tracks, ffmpeg_w, ffmpeg_h)
+                return (ffmpeg_tracks, ffmpeg_w, ffmpeg_h, filename[0])  # Return as tuple
+                
+            # Create worker and connect result
+            GLOBAL_THREAD_POOL.start(Worker(ffmpeg_parse, on_finished=self.unlock_screen))
 
         # Continue with media loading...
         self.media = self.instance.media_new(filename[0])
@@ -473,57 +533,9 @@ class Player(QtWidgets.QMainWindow):
         # Put the media in the media player
         self.mediaplayer.set_media(self.media)
         self.mediaplayer.set_mrl(filename[0], ":avcodec-hw=none", ":no-hw-dec")
-
-        event_manager = self.mediaplayer.event_manager()
-
-        def time_changed_callback(event):
-            media_pos = int(self.mediaplayer.get_position() * 1000)
-            # print('set position', media_pos)
-            QtCore.QMetaObject.invokeMethod(self.positionslider, "setValue", QtCore.Qt.QueuedConnection,
-                                            QtCore.Q_ARG(int, media_pos))
-            current_time = self.mediaplayer.get_time()  # 获取当前播放时间（单位：毫秒）
-            if self.captionList:
-                if self.caption_type == CaptionType.NORMAL:
-                    cur_caption = find_caption(current_time, self.captionList, self.cur_caption_seq)
-                    if cur_caption and cur_caption['seq'] not in self.cur_caption_seq:
-                        self.cur_caption_seq.clear()
-                        text = cur_caption['caption'].text
-                        text = text.replace('&nbsp;', ' ').replace('\n', ' ')
-                        text = text.replace('{', '{{').replace('}', '}}')
-
-                        self.cur_caption_seq.add(cur_caption['seq'])
-                        html = get_template("caption", text)
-                        QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
-                                                        QtCore.Q_ARG(str, html))
-                elif self.caption_type == CaptionType.YOUTUBE_AUTO_GENERATED:
-                    all_text = []
-                    first, second = find_captions(current_time, self.captionList, self.cur_caption_seq)
-                    #print("first", first, "second", second, "cur", current_time)
-                    if first and first['seq'] in self.cur_caption_seq:
-                        return
-                    if second and second['seq'] in self.cur_caption_seq:
-                        return
-                    self.cur_caption_seq.clear()
-                    if first:
-                        self.cur_caption_seq.add(first['seq'])
-                        all_text.append(first['caption'].text)
-                    if second:
-                        self.cur_caption_seq.add(second['seq'])
-                        all_text.append(second['caption'].text)
-                    if len(all_text) > 0:
-                        text = " ".join(all_text)
-                        text = text.replace('&nbsp;', ' ').replace('\n', ' ')
-                        text = text.replace('{', '{{').replace('}', '}}')
-                        html = get_template("caption", text)
-                        QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
-                                                        QtCore.Q_ARG(str, html))
-
-        event_manager.event_attach(vlc.EventType.MediaPlayerTimeChanged, time_changed_callback)
-
-
-        # Parse the metadata of the file
         self.media.parse()
-
+        event_manager = self.mediaplayer.event_manager()
+        event_manager.event_attach(vlc.EventType.MediaPlayerTimeChanged, self.time_changed_callback)
         # The media player has to be 'connected' to the QFrame (otherwise the
         # video would be displayed in it's own window). This is platform
         # specific, so we must give the ID of the QFrame (or similar object) to
@@ -552,11 +564,73 @@ class Player(QtWidgets.QMainWindow):
                     self.backend_load_caption_from_str(subtitle_strs[en_index[0]])
             print("self.embed_caption_dict keys", self.embed_caption_dict.keys())
 
-        self.playbutton.setEnabled(False)
-        GLOBAL_THREAD_POOL.start(Worker(parse_caption_files,  on_finished=self.track_parsed))
+        # resize_player(self, ffmpeg_w, ffmpeg_h)
+        #self.play_pause()
 
-        resize_player(self, ffmpeg_w, ffmpeg_h)
-        # self.play_pause()
+    def on_subtitle_selected(self, selected_option):
+        filename = selected_option.get('filename')
+        index = selected_option.get('index')
+        self.embed_caption_dict.clear()
+        print("selected option", selected_option)
+        def extract_now():
+            print("start extract subtitle")
+            ret = []
+            subtitle_content = extract_subtitle_as_string(filename, track_index=index)
+            if subtitle_content:
+                ret = get_captions_from_string(subtitle_content)
+            return ret
+
+        def on_finished(result):
+            if len(result) > 0:
+                self.captionList = result
+                html = get_template("welcome", f"加载第{index}条内置字幕, 共{len(result)}条")
+                QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
+                                                QtCore.Q_ARG(str, html))
+        # put in thread pool
+        GLOBAL_THREAD_POOL.start(Worker(extract_now, on_finished=on_finished))
+
+    def time_changed_callback(self, event):
+        media_pos = int(self.mediaplayer.get_position() * 1000)
+        # print('set position', media_pos)
+        QtCore.QMetaObject.invokeMethod(self.positionslider, "setValue", QtCore.Qt.QueuedConnection,
+                                        QtCore.Q_ARG(int, media_pos))
+        current_time = self.mediaplayer.get_time()  # 获取当前播放时间（单位：毫秒）
+        if self.captionList:
+            if self.caption_type == CaptionType.NORMAL:
+                cur_caption = find_caption(current_time, self.captionList, self.cur_caption_seq)
+                if cur_caption and cur_caption['seq'] not in self.cur_caption_seq:
+                    self.cur_caption_seq.clear()
+                    text = cur_caption['caption'].text
+                    text = text.replace('&nbsp;', ' ').replace('\n', ' ')
+                    text = text.replace('{', '{{').replace('}', '}}')
+
+                    self.cur_caption_seq.add(cur_caption['seq'])
+                    html = get_template("caption", text)
+                    QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
+                                                    QtCore.Q_ARG(str, html))
+            elif self.caption_type == CaptionType.YOUTUBE_AUTO_GENERATED:
+                all_text = []
+                first, second = find_captions(current_time, self.captionList, self.cur_caption_seq)
+                # print("first", first, "second", second, "cur", current_time)
+                if first and first['seq'] in self.cur_caption_seq:
+                    return
+                if second and second['seq'] in self.cur_caption_seq:
+                    return
+                self.cur_caption_seq.clear()
+                if first:
+                    self.cur_caption_seq.add(first['seq'])
+                    all_text.append(first['caption'].text)
+                if second:
+                    self.cur_caption_seq.add(second['seq'])
+                    all_text.append(second['caption'].text)
+                if len(all_text) > 0:
+                    text = " ".join(all_text)
+                    text = text.replace('&nbsp;', ' ').replace('\n', ' ')
+                    text = text.replace('{', '{{').replace('}', '}}')
+                    html = get_template("caption", text)
+                    QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
+                                                    QtCore.Q_ARG(str, html))
+
 
     def set_volume(self, volume):
         """Set the volume
