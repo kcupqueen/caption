@@ -114,6 +114,10 @@ class Player(QtWidgets.QMainWindow):
             QtCore.QMetaObject.invokeMethod(self.floatingWindow, 
                                           "hide",
                                           QtCore.Qt.ConnectionType.QueuedConnection)
+        # play 0.1 just for cover image
+        self.mediaplayer.play()
+        self.mediaplayer.set_time(100)
+        self.mediaplayer.pause()
 
     def clear_player_cache(self):
         self.play_triggered_times = 0
@@ -546,6 +550,7 @@ class Player(QtWidgets.QMainWindow):
             self.mediaplayer.set_hwnd(int(self.videoframe.winId()))
         elif platform.system() == "Darwin":  # for MacOS
             self.mediaplayer.set_nsobject(int(self.videoframe.winId()))
+
 
 
     def on_subtitle_selected(self, selected_option):
