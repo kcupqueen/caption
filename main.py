@@ -303,28 +303,8 @@ class Player(QtWidgets.QMainWindow):
         if len(audio_tracks) > 0:
             self.audio_tracks = audio_tracks
         # Disable subtitles more thoroughly
-        self.mediaplayer.video_set_spu(-1)  # Try basic disable
-        self.mediaplayer.video_set_subtitle_file(None)  # Clear any subtitle file
-        self.mediaplayer.video_set_spu_delay(0)  # Reset subtitle delay
-        # Force disable track selection
-        self.mediaplayer.video_set_track(-1)
-        # subtitle_menu = self.caption_menu.addMenu("Subtitle Tracks")
-        # subtitle_tracks = self.subtitle_tracks
-        # if len(subtitle_tracks) == 0:
-        #     return
-        #
-        # current_spu = 0
-        # print("All Subtitle Tracks: ", len(subtitle_tracks), "extract file num", self.sub_file_num)
-        # for track in subtitle_tracks:
-        #     print(f"Subtitle Track: {track}")
-        #     track_id = track[0]
-        #     track_name = track[1]
-        #     # Add checkmark emoji if this is the current track
-        #     prefix = "✓ " if track_id == current_spu else "    "
-        #     action = QtWidgets.QAction(f"{prefix}Subtitle: {track_name} {track_id}", self)
-        #     action.setData(track_id)
-        #     action.triggered.connect(lambda checked, tid=track_id: self.set_subtitle_track(tid))
-        #     subtitle_menu.addAction(action)
+
+
 
         print("embedded audio tracks", len(self.audio_tracks), "subtitle tracks", len(self.subtitle_tracks))
 
@@ -481,6 +461,7 @@ class Player(QtWidgets.QMainWindow):
 
 
 
+
     def show_subtitle_selector(self, options, filename):
         # width is 1/4 of the screen width
         # height is 1/3 of the screen height
@@ -541,6 +522,15 @@ class Player(QtWidgets.QMainWindow):
             self.mediaplayer.set_hwnd(int(self.videoframe.winId()))
         elif platform.system() == "Darwin":  # for MacOS
             self.mediaplayer.set_nsobject(int(self.videoframe.winId()))
+        self.mediaplayer.video_set_spu(-1)  # Try basic disable
+        self.mediaplayer.video_set_subtitle_file(None)  # Clear any subtitle file
+        self.mediaplayer.video_set_spu_delay(0)  # Reset subtitle delay
+        self.mediaplayer.video_set_track(-1)
+
+        print("play triggered 3")
+        self.mediaplayer.play()
+        # pause after 0.1s
+        QTimer.singleShot(100, self.mediaplayer.pause)
 
 
 
