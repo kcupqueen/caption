@@ -168,9 +168,9 @@ class Player(QtWidgets.QMainWindow):
         self.hbuttonbox.addWidget(self.playbutton)
         self.playbutton.clicked.connect(self.play_pause)
 
-        # self.stopbutton = QtWidgets.QPushButton("Stop")
-        # self.hbuttonbox.addWidget(self.stopbutton)
-        # self.stopbutton.clicked.connect(self.stop)
+        self.time_label = QtWidgets.QLabel(self)
+        self.time_label.setText("00:00:00/??:??:??")
+        self.hbuttonbox.addWidget(self.time_label)
 
         self.hbuttonbox.addStretch(1)
         self.volumeslider = QtWidgets.QSlider(QtCore.Qt.Horizontal, self)
@@ -281,7 +281,7 @@ class Player(QtWidgets.QMainWindow):
         self.caption_menu.clear()
 
         # Add caption loading action back
-        caption_action = QtWidgets.QAction("Load Caption", self)
+        caption_action = QtWidgets.QAction("挂载字幕", self)
         caption_action.triggered.connect(self.load_caption)
         self.caption_menu.addAction(caption_action)
         self.caption_menu.addSeparator()
@@ -308,25 +308,23 @@ class Player(QtWidgets.QMainWindow):
         self.mediaplayer.video_set_spu_delay(0)  # Reset subtitle delay
         # Force disable track selection
         self.mediaplayer.video_set_track(-1)
-        print("Disabled subtitles using multiple methods")
-
-        subtitle_menu = self.caption_menu.addMenu("Subtitle Tracks")
-        subtitle_tracks = self.subtitle_tracks
-        if len(subtitle_tracks) == 0:
-            return
-
-        current_spu = 0
-        print("All Subtitle Tracks: ", len(subtitle_tracks), "extract file num", self.sub_file_num)
-        for track in subtitle_tracks:
-            print(f"Subtitle Track: {track}")
-            track_id = track[0]
-            track_name = track[1]
-            # Add checkmark emoji if this is the current track
-            prefix = "✓ " if track_id == current_spu else "    "
-            action = QtWidgets.QAction(f"{prefix}Subtitle: {track_name} {track_id}", self)
-            action.setData(track_id)
-            action.triggered.connect(lambda checked, tid=track_id: self.set_subtitle_track(tid))
-            subtitle_menu.addAction(action)
+        # subtitle_menu = self.caption_menu.addMenu("Subtitle Tracks")
+        # subtitle_tracks = self.subtitle_tracks
+        # if len(subtitle_tracks) == 0:
+        #     return
+        #
+        # current_spu = 0
+        # print("All Subtitle Tracks: ", len(subtitle_tracks), "extract file num", self.sub_file_num)
+        # for track in subtitle_tracks:
+        #     print(f"Subtitle Track: {track}")
+        #     track_id = track[0]
+        #     track_name = track[1]
+        #     # Add checkmark emoji if this is the current track
+        #     prefix = "✓ " if track_id == current_spu else "    "
+        #     action = QtWidgets.QAction(f"{prefix}Subtitle: {track_name} {track_id}", self)
+        #     action.setData(track_id)
+        #     action.triggered.connect(lambda checked, tid=track_id: self.set_subtitle_track(tid))
+        #     subtitle_menu.addAction(action)
 
         print("embedded audio tracks", len(self.audio_tracks), "subtitle tracks", len(self.subtitle_tracks))
 
@@ -380,6 +378,11 @@ class Player(QtWidgets.QMainWindow):
         #self.mediaplayer.video_set_spu(-1)
         if self.ignore_user:
             print("User input ignored")
+            
+            # Create and show a tooltip when user input is ignored
+            dots = "." * ((int(time.time()) % 3) + 1)
+            loading_html = get_template("error", f"Loading in progress{dots}<br>Please wait while processing...")
+            self.caption.setHtml(loading_html)
             return
 
         if self.mediaplayer.is_playing():
@@ -395,11 +398,32 @@ class Player(QtWidgets.QMainWindow):
             self.playbutton.setText("Pause")
             self.is_paused = False
             print("play triggered 1")
-            if self.mediaplayer.is_playing():
-                print("play triggered 2")
-                # hide all floating windows
-                if hasattr(self, 'floatingWindow') and self.floatingWindow.isVisible():
-                    self.floatingWindow.hide()
+            def after_play():
+                if self.mediaplayer.is_playing():
+                    print("play triggered 2")
+                    # hide all floating windows
+                    if hasattr(self, 'floatingWindow') and self.floatingWindow.isVisible():
+                        self.floatingWindow.hide()
+                    print("Len=", self.mediaplayer.get_length())
+                    self.refresh_time_label()
+
+                else:
+                    print("play failed")
+
+            QTimer.singleShot(200, after_play)
+
+    def refresh_time_label(self):
+        if self.mediaplayer.get_length() > 0:
+            #print("refresh time label")
+            cur_time = self.mediaplayer.get_time()
+            # set a valid time string to self.time_l;abel
+            text = f"{time.strftime('%H:%M:%S', time.gmtime(cur_time // 1000))}/" + \
+                                    f"{time.strftime('%H:%M:%S', time.gmtime(self.mediaplayer.get_length() // 1000))}"
+            # queued chage text
+            QtCore.QMetaObject.invokeMethod(self.time_label, "setText", QtCore.Qt.QueuedConnection,
+                                            QtCore.Q_ARG(str, text))
+        else:
+            print("No time label")
 
     def pause(self, action):
         if self.mediaplayer.is_playing():
@@ -504,6 +528,7 @@ class Player(QtWidgets.QMainWindow):
         self.mediaplayer.set_media(self.media)
         self.mediaplayer.set_mrl(filename[0], ":avcodec-hw=none", ":no-hw-dec")
         self.media.parse()
+
         event_manager = self.mediaplayer.event_manager()
         event_manager.event_attach(vlc.EventType.MediaPlayerTimeChanged, self.time_changed_callback)
         # The media player has to be 'connected' to the QFrame (otherwise the
@@ -551,6 +576,8 @@ class Player(QtWidgets.QMainWindow):
         QtCore.QMetaObject.invokeMethod(self.positionslider, "setValue", QtCore.Qt.QueuedConnection,
                                         QtCore.Q_ARG(int, media_pos))
         current_time = self.mediaplayer.get_time()  # 获取当前播放时间（单位：毫秒）
+        self.refresh_time_label()
+
         if self.captionList:
             if self.caption_type == CaptionType.NORMAL:
                 cur_caption = find_caption(current_time, self.captionList, self.cur_caption_seq)
