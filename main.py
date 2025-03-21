@@ -467,8 +467,14 @@ class Player(QtWidgets.QMainWindow):
         # height is 1/3 of the screen height
         w = self.width() // 4
         h = self.height() // 3
-        dialog = OptionDialog(options, w, h, filename, self)
+        def reject():
+            print("reject")
+            self.ignore_user = False
+        dialog = OptionDialog(options, w, h, filename, reject_func=reject, parent=self)
+
         dialog.option_selected.connect(self.on_subtitle_selected)
+
+
         dialog.exec_()
 
     def open_file(self):

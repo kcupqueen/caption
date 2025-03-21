@@ -19,9 +19,10 @@
 ## user experience
 - [x] feature 空格键暂停、播放
 - [x] feature 点击屏幕暂停、播放
-- [ ] feature 加载字幕时的loading
+- [x] feature 加载字幕时的loading
 - [ ] feature 调用API时的loading
-- [ ] feature 播放当前time
+- [x] feature 播放当前time
+- [ ] 播放途中选择内置字幕
 
 ## bug
 - [x] 提取字幕散乱

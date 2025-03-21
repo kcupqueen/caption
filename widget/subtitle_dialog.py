@@ -20,13 +20,13 @@ class SubtitleOption:
 
 class OptionDialog(QDialog):
     option_selected = pyqtSignal(object)  # ✅ 定义一个信号，传递选择的字符串
-
-    def __init__(self, options,w,h, fname, parent=None):
+    def __init__(self, options,w,h, fname, reject_func, parent=None):
         super().__init__(parent)
         self.setWindowTitle("内置字幕选择器")
         self.selected_option = None  # 存储选择的值
         self.fname = fname
         layout = QVBoxLayout()
+        self.reject_func = reject_func
 
         # 创建单选按钮
         self.radio_buttons = []
@@ -46,7 +46,6 @@ class OptionDialog(QDialog):
         # ✅ 连接信号槽
         self.confirm_button.clicked.connect(self.emit_selected_option)
         self.cancel_button.clicked.connect(self.reject)  # 直接关闭对话框
-
         # size
         self.resize(w,h)
 
@@ -64,6 +63,10 @@ class OptionDialog(QDialog):
                 return
         print("No option selected!")  # Handle the case where no option is selected
 
+    def reject(self):
+        if self.reject_func is not None:
+            self.reject_func()
+        super().reject()
 
 # ✅ 在主窗口中监听信号
 def handle_selection(selected_option):
