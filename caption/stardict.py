@@ -1835,6 +1835,9 @@ def generate_dictionary_html(dict_entry):
         str: HTML string for the dictionary entry
     """
     # Process translation - split by newlines
+    if not dict_entry:
+        return "Not found"
+
     translation_html = ""
     if dict_entry.get('translation'):
         translation_parts = dict_entry['translation'].split('\n')
@@ -1870,10 +1873,10 @@ def generate_dictionary_html(dict_entry):
     tags_html = ""
     if dict_entry.get('tag'):
         tag_map = {
-            'zk': '中考',
-            'gk': '高考',
-            'cet4': 'CET-4',
-            'cet6': 'CET-6',
+            # 'zk': '中考',
+            # 'gk': '高考',
+            # 'cet4': 'CET-4',
+            # 'cet6': 'CET-6',
             'ky': '考研',
             'toefl': 'TOEFL',
             'ielts': 'IELTS'
