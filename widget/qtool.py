@@ -229,6 +229,9 @@ class FloatingTranslation(QMainWindow):
         if lookup_type == LookUpType.SENTENCE and state == LookupState.LOADED:
             self.confirm_button.hide()
             self.save_button.show()
+        if lookup_type == LookUpType.WORD:
+            self.confirm_button.hide()
+            self.save_button.show()
 
     def hide_window(self):
         """Hide the window and emit the windowClosed signal"""
@@ -291,6 +294,11 @@ class FloatingTranslation(QMainWindow):
         # Position the window
         new_pos = QPoint(pos.x(), pos.y() - self.height())
         self.move(new_pos)
+        # check if the confirm button is already connected
+        try:
+            self.confirm_button.click_signal.disconnect()
+        except TypeError:
+            pass
         self.confirm_button.click_signal.connect(partial(self.async_lookup, text, pos))
 
         # Show the window

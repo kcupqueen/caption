@@ -2326,7 +2326,7 @@ class OfflineTranslator:
             return render_dictionary_entry(sample_entry)
         else:
             print("Dictionary not loaded")
-            return generate_error_html("Dictionary not loaded")
+            return generate_error_html(f"{word} not found in dictionary")
 
 
 

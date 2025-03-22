@@ -77,6 +77,13 @@ class Player(QtWidgets.QMainWindow):
         self.setWindowTitle("CompreVids️")
         self.ignore_user = False
 
+        # Set window background color
+        palette = self.palette()
+        # white
+        palette.setColor(QtGui.QPalette.Window, QtGui.QColor(255, 255, 255))
+        self.setPalette(palette)
+        self.setAutoFillBackground(True)
+
         # Create a basic vlc instance
         self.instance = vlc.Instance("--file-caching=5000", "--network-caching=5000", "--no-sub-autodetect-file", "--no-spu")
 
