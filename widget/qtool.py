@@ -4,8 +4,11 @@ from PyQt5.QtGui import QTextCursor, QPalette, QColor, QIcon, QPainter, QPolygon
 from PyQt5.QtCore import Qt, QPoint, QEvent, pyqtSignal, QSize, QDir, QUrl
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 from functools import partial
+from pathlib import Path
 
-from caption import LookupState
+from caption import LookupState, LookUpType
+from widget.ani_button import GifButton
+from widget.thread_pool import GLOBAL_THREAD_POOL, Worker
 
 html_content = """
         <html>
@@ -40,6 +43,8 @@ html_content = """
         </body>
         </html>
         """
+
+ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 
 class TriangleSizeGrip(QSizeGrip):
     def __init__(self, parent=None):
@@ -142,6 +147,7 @@ class FloatingTranslation(QMainWindow):
         # Main widget and layout
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
+
         self.online_func = online_func
         layout = QVBoxLayout(self.central_widget)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -179,6 +185,9 @@ class FloatingTranslation(QMainWindow):
         # Add QSizeGrip for resizing
         self.size_grip = TriangleSizeGrip(self)
         bottom_layout.addWidget(self.size_grip, 0, Qt.AlignRight | Qt.AlignBottom)
+        self.confirm_button = GifButton("translate", str(ASSETS_DIR / "loading.gif"))
+        # Add button to the bottom layout
+        self.content_widget.layout().itemAt(1).layout().insertWidget(0, self.confirm_button)
 
         self.setStyleSheet(f"""
             QMainWindow {{
@@ -204,10 +213,23 @@ class FloatingTranslation(QMainWindow):
         
         # Initial size
         self.resize(400, 300)
-        
+        self.captionReady.connect(self.display_translation)
+
         # Monitor global mouse events
         #QApplication.instance().installEventFilter(self)
-        
+
+    def display_translation(self, event=None):
+        pos = event['pos']
+        state = event['state']
+        text = event['text']
+        lookup_type = event.get('lookup_type', LookUpType.WORD)
+        print("display_translation, type is", lookup_type)
+        if text:
+            self.set_translation(text, pos, state)
+        if lookup_type == LookUpType.SENTENCE and state == LookupState.LOADED:
+            self.confirm_button.hide()
+            self.save_button.show()
+
     def hide_window(self):
         """Hide the window and emit the windowClosed signal"""
         print("FloatingTranslation hide_window")
@@ -259,30 +281,7 @@ class FloatingTranslation(QMainWindow):
         
         # Create confirm button if it doesn't exist
         if not hasattr(self, 'confirm_button'):
-            self.confirm_button = QPushButton("Translate")
-            self.confirm_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #4CAF50;
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                }
-                QPushButton:hover {
-                    background-color: #45a049;
-                }
-            """)
-            # Add button to the bottom layout
-            self.content_widget.layout().itemAt(1).layout().insertWidget(0, self.confirm_button)
-
-        # 先断开旧的连接，防止多次点击绑定多个函数
-        try:
-            self.confirm_button.clicked.disconnect()
-        except TypeError:
-            pass  # 可能没有绑定过，不影响
-            # 重新绑定，每次调用都用最新的 text 和 pos
-        # print("connect confirm_button")
-        self.confirm_button.clicked.connect(partial(self.handle_translation_confirm, text, pos))
+            print(str(ASSETS_DIR / "loading.gif"))
 
         self.confirm_button.show()
         
@@ -292,22 +291,33 @@ class FloatingTranslation(QMainWindow):
         # Position the window
         new_pos = QPoint(pos.x(), pos.y() - self.height())
         self.move(new_pos)
-        
+        self.confirm_button.click_signal.connect(partial(self.async_lookup, text, pos))
+
         # Show the window
         self.show()
         self.activateWindow()
-    
-    def handle_translation_confirm(self, text, pos):
-        """Handle translation confirmation"""
-        # print("real translate:", text)
-        # Emit signal that caption is ready to be translated
-        ret = self.online_func(text)
-        self.captionReady.emit({"text": ret, "pos": pos, "state": LookupState.LOADED})
-        # Change title back
-        self.title_bar.title_label.setText("翻译")
-        # Hide confirm button and show save button
-        self.confirm_button.hide()
-        self.save_button.show()
+
+    def async_lookup(self, text, pos):
+        print("start async_lookup")
+        """Perform an asynchronous lookup for the selected text"""
+        def lookup_caption_task(text):
+            ret = self.online_func(text)
+            print("got ret", ret)
+            return {
+                'text': ret,
+                'pos': pos,
+            }
+
+        def on_result(result):
+            self.captionReady.emit({
+                'text': result.get('text', "N/A"),
+                'pos': result.get('pos', QPoint(0, 0)),
+                "state": LookupState.LOADED,
+                "lookup_type": LookUpType.SENTENCE,
+            })
+
+        GLOBAL_THREAD_POOL.start(Worker(lookup_caption_task, text, on_finished=on_result))
+
 
     def save_translation(self):
         self.label.page().toHtml(lambda html: print("已收藏:", html))

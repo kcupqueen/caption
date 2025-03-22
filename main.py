@@ -195,12 +195,11 @@ class Player(QtWidgets.QMainWindow):
         self.caption_layout.addWidget(self.caption)
 
         # caption word lookup
-        self.floatingWindow = FloatingTranslation(self, self.translator2.lookup)
+        self.floatingWindow = FloatingTranslation(self, online_func=self.translator2.lookup)
 
         self.floatingWindow.windowClosed.connect(self.play_pause)
 
         # self.floatingWindow.windowClosed.connect(self.go_on_play)  # Connect signal to slot
-        self.floatingWindow.captionReady.connect(self.display_translation)
 
         self.vboxlayout = QtWidgets.QVBoxLayout()
         self.vboxlayout.addWidget(self.videoframe, 80)  # Give videoframe a stretch factor of 80
@@ -344,14 +343,7 @@ class Player(QtWidgets.QMainWindow):
         except Exception as e:
             print("Error getting SPU content:", str(e))
 
-    def display_translation(self, event=None):
-        pos = event['pos']
-        state = event['state']
-        text = event['text']
-        lookup_type = event.get('lookup_type', LookUpType.WORD)
-        print("display_translation, type is", lookup_type)
-        if text:
-            self.floatingWindow.set_translation(text, pos, state)
+
 
     def play_pause(self):
         """Toggle play/pause status
