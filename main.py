@@ -129,6 +129,7 @@ class Player(QtWidgets.QMainWindow):
         self.captionList = []
         self.cur_caption_seq = set()
         self.update_tracks_menu()
+        self.time_label.setText("00:00:00/??:??:??")
 
     def create_ui(self):
         """Set up the user interface, signals & slots
@@ -645,15 +646,24 @@ class Player(QtWidgets.QMainWindow):
 
     def backend_load_caption(self, filename):
         if filename:
-            ret, _type = get_captions(filename)
-            if len(ret) > 0:
-                print("get options ok", len(ret))
+            def load_caption():
+                if filename:
+                    ret, _type = get_captions(filename)
+                    self.cur_caption_seq.clear()
+                    return ret, _type
+                return [], None
 
-                self.captionList = ret
-                html = get_template("welcome", f"加载[En]字幕文件成功, _type: {_type}")
-                QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
-                                                QtCore.Q_ARG(str, html))
-                self.caption_type = _type
+            def on_finished(result):
+                ret, _type = result
+                if len(ret) > 0:
+                    print("get options ok", len(ret))
+                    self.captionList = ret
+                    html = get_template("welcome", f"加载[En]字幕文件成功, _type: {_type}")
+                    QtCore.QMetaObject.invokeMethod(self.caption, "setHtml", QtCore.Qt.QueuedConnection,
+                                                    QtCore.Q_ARG(str, html))
+                    self.caption_type = _type
+
+            GLOBAL_THREAD_POOL.start(Worker(load_caption, on_finished=on_finished))
 
 
     def backend_load_caption_from_str(self, content):
